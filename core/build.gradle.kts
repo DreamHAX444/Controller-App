@@ -35,4 +35,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.security.crypto)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

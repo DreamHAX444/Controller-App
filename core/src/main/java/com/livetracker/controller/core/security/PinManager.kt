@@ -14,7 +14,7 @@ class PinManager(private val secureStorage: SecureStorage) {
         private const val KEY_FAILED_ATTEMPTS = "pin_failed_attempts"
         private const val KEY_LOCKOUT_TIME = "pin_lockout_time"
 
-        private const val ITERATIONS = 10000
+        private const val ITERATIONS = 100000 // Increased for offline brute-force resistance
         private const val KEY_LENGTH = 256
         private const val MAX_FAILED_ATTEMPTS = 5
         private const val LOCKOUT_DURATION_MS = 30000L // 30 seconds

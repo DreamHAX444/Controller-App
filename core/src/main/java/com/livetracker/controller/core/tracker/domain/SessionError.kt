@@ -1,0 +1,14 @@
+package com.livetracker.controller.core.tracker.domain
+
+enum class SessionError {
+    UNKNOWN_TRACKER,
+    SESSION_NOT_FOUND,
+    ALREADY_CONNECTED,
+    NOT_CONNECTED,
+    TRANSPORT_ERROR,
+    PROTOCOL_ERROR,
+    COMMAND_TIMEOUT,
+    UNSUPPORTED_COMMAND,
+    INVALID_COMMAND,
+    AUTHORIZATION_REQUIRED
+}
