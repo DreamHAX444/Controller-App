@@ -7,10 +7,10 @@ The Controller App is being rebuilt from scratch as a secure, reliable, high-per
 Phase 0.1 - Security Foundation & 4-Digit PIN implemented. Forensic Audit completed and fixes applied.
 
 ## Current Development Phase
-Phase 2.5 — WebRTC Data Channel & Command/Event Transport
+Phase 2.6 — End-to-End Tracker Session Transport Integration
 
 Status:
-COMPLETE (Implemented DefaultDataChannelTransport for Command/Event handling. Implemented DefaultTrackerTransport to orchestrate WebRTC session state and signaling, wiring up the DataChannel component. Addressed unit test concurrency issues on TestCoroutineScheduler. Verified compilation and all unit tests passed.)
+COMPLETE (Integrated Signaling Foundation, WebRTC Session Foundation, and DataChannel into DefaultTrackerTransport. Corrected state machine transition mapping. Fixed initial DISCONNECTED emission bugs from state flows and updated unit tests to correctly simulate Tracker-initiated DataChannel creation. Verified compilation and all unit tests passed.)
 
 ## Architecture Status
 Controller architecture is being rebuilt from scratch.
@@ -122,8 +122,11 @@ The Tracker App is the integration target.
   - Developed `DefaultDataChannelTransport` utilizing Kotlinx Serialization (`Json`) to encode commands and decode event payloads securely.
   - Implemented command-response correlation using a `MutableMap` of `CompletableDeferred` mapped by `commandId` and guarded by a `Mutex`.
   - Used Kotlin Coroutines `withTimeout` to gracefully handle command timeouts, emitting `CommandResult.Timeout`.
+- Phase 2.6 (End-to-End Tracker Session Transport Integration) implemented:
   - Wired `DefaultDataChannelTransport` into `DefaultTrackerTransport`, launching observation loops to collect incoming WebRTC state changes and start the data channel once `CONNECTED`.
   - Fixed test flakiness related to Coroutine Testing dispatchers (`UnconfinedTestDispatcher`) in `DefaultTrackerTransportTest`.
+  - Handled DataChannel creation sequence where the Tracker is the initiator, dropping unexpected data channels except for `"commands"`.
+  - Fixed `DISCONNECTED` state emission from `SignalingSession.state` colliding with `CONNECTING` phase logic.
   - Confirmed all tests for the session layer pass.
 - Updated `.gitignore` to properly ignore sub-module build directories (`build/` instead of `/build`).
 - Performed `ponytail-audit`: deleted `convert.py`, `generate_icons.py`, `ControllerApplication.kt`, and untracked `app/build/` and `core/build/` from git.

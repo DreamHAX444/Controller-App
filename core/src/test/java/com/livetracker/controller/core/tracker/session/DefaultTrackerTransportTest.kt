@@ -147,7 +147,7 @@ class DefaultTrackerTransportTest {
     }
 
     class FakeTrackerDataChannel : TrackerDataChannel {
-        override val label: String = "fake"
+        override val label: String = "commands"
         override val state = MutableStateFlow(com.livetracker.controller.core.tracker.webrtc.datachannel.DataChannelState.OPEN)
         override val incomingMessages = emptyFlow<String>()
         override suspend fun open() {}
@@ -210,6 +210,8 @@ class DefaultTrackerTransportTest {
         assertTrue(sigSession.sentMessages.any { it.type == SignalingMessageType.ICE_CANDIDATE && (it.payload as IceCandidatePayload).candidate == "local-ice" })
 
         // Simulate WebRTC connection success
+        webRtcSession._state.value = WebRtcState.CONNECTING
+        advanceUntilIdle()
         webRtcSession._state.value = WebRtcState.CONNECTED
         advanceUntilIdle()
 
