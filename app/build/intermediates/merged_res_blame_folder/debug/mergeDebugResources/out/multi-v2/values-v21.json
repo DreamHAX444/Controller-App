@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.livetracker.controller.app-mergeDebugResources-42:/values-v21/values-v21.xml",
+            "outputFile": "com.livetracker.controller.app-mergeDebugResources-49:/values-v21/values-v21.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\ZNS\\.gradle\\caches\\9.1.0\\transforms\\c353d86c56ff962d3712aedabcd7fe63\\workspace\\transformed\\core-1.13.1\\res\\values-v21\\values-v21.xml",
+                    "source": "C:\\Users\\ZNS\\.gradle\\caches\\9.1.0\\transforms\\f37fa263f8178f9ed6e36e873cc6f16f\\workspace\\transformed\\core-1.13.1\\res\\values-v21\\values-v21.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,13",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4",

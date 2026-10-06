@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.livetracker.controller.core.security.PinManagerTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-06T03:13:25.710Z" hostname="DESKTOP-T2U63AB" time="0.152">
+  <properties/>
+  <testcase name="testVerifyIncorrectPin" classname="com.livetracker.controller.core.security.PinManagerTest" time="0.083"/>
+  <testcase name="testSetPinAndVerifySuccess" classname="com.livetracker.controller.core.security.PinManagerTest" time="0.035"/>
+  <testcase name="testLockoutAfterMaxAttempts" classname="com.livetracker.controller.core.security.PinManagerTest" time="0.032"/>
+  <testcase name="testPinNotSetInitially" classname="com.livetracker.controller.core.security.PinManagerTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
