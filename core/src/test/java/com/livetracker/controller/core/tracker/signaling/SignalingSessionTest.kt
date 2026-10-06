@@ -69,7 +69,7 @@ class SignalingSessionTest {
         runCurrent()
         
         assertEquals(SignalingState.DISCONNECTED, session.state.value)
-        assertTrue(fakeTransport.sentMessages.any { it.type == SignalingMessageType.STOP_REQUEST })
+        assertTrue("Expected SESSION_ENDED, but sent messages are: ${fakeTransport.sentMessages}", fakeTransport.sentMessages.any { it.type == SignalingMessageType.SESSION_ENDED })
     }
 
     @Test

@@ -123,8 +123,7 @@ class TrackerSessionManagerTest {
         
         fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTING)
         
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id2]?.progressToConnected()
         
         assertEquals(ConnectionState.CONNECTING, manager.getSession(id1)?.value?.connectionState)
         assertEquals(ConnectionState.CONNECTED, manager.getSession(id2)?.value?.connectionState)
@@ -142,8 +141,7 @@ class TrackerSessionManagerTest {
         
         fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTING)
         
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id2]?.progressToConnected()
         
         // id3 stays disconnected
         
@@ -160,11 +158,9 @@ class TrackerSessionManagerTest {
         manager.registerTracker(id1, "T1")
         manager.registerTracker(id2, "T2")
         
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id1]?.progressToConnected()
         
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id2]?.progressToConnected()
         
         manager.disconnect(id1)
         fakeTransports[id1]?.setConnectionState(ConnectionState.DISCONNECTED)
@@ -224,11 +220,9 @@ class TrackerSessionManagerTest {
         manager.registerTracker(id1, "T1")
         manager.registerTracker(id2, "T2")
         
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id1]?.progressToConnected()
         
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id2]?.progressToConnected()
         
         fakeTransports[id1]?.emitEvent(TrackerEvent.CapabilitiesUpdated("e1", id1, 0, TrackerCapabilities(location = true)))
         fakeTransports[id2]?.emitEvent(TrackerEvent.CapabilitiesUpdated("e2", id2, 0, TrackerCapabilities(location = true)))
@@ -247,11 +241,9 @@ class TrackerSessionManagerTest {
         manager.registerTracker(id1, "T1")
         manager.registerTracker(id2, "T2")
         
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id1]?.progressToConnected()
         
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id2]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id2]?.progressToConnected()
         
         fakeTransports[id1]?.emitEvent(TrackerEvent.CapabilitiesUpdated("e1", id1, 0, TrackerCapabilities(location = true)))
         fakeTransports[id2]?.emitEvent(TrackerEvent.CapabilitiesUpdated("e2", id2, 0, TrackerCapabilities(location = true)))
@@ -287,8 +279,7 @@ class TrackerSessionManagerTest {
         val id1 = TrackerId("t1")
         manager.registerTracker(id1, "T1")
         
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTING)
-        fakeTransports[id1]?.setConnectionState(ConnectionState.CONNECTED)
+        fakeTransports[id1]?.progressToConnected()
         
         fakeTransports[id1]?.emitEvent(TrackerEvent.CapabilitiesUpdated("e1", id1, 0, TrackerCapabilities(location = true)))
         
@@ -357,8 +348,7 @@ class TrackerSessionManagerTest {
         manager.registerTracker(id1, "T1")
         val transport = fakeTransports[id1]!!
         
-        transport.setConnectionState(ConnectionState.CONNECTING)
-        transport.setConnectionState(ConnectionState.CONNECTED)
+        transport.progressToConnected()
         assertEquals(ConnectionState.CONNECTED, manager.getSession(id1)?.value?.connectionState)
         
         transport.setConnectionState(ConnectionState.DISCONNECTED)
@@ -393,7 +383,7 @@ class TrackerSessionManagerTest {
         manager.registerTracker(id1, "T1")
         
         val transport = fakeTransports[id1]!!
-        transport.setConnectionState(ConnectionState.CONNECTED)
+        transport.progressToConnected()
         transport.setConnectionState(ConnectionState.DISCONNECTED)
         
         assertEquals(1, manager.listSessions().size)

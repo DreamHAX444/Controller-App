@@ -80,13 +80,20 @@ class DefaultTrackerSessionManager(
     }
 
     private fun validateTransition(current: ConnectionState, next: ConnectionState): ConnectionState {
-        // Enforce valid transitions
+        // Enforce valid transitions: REGISTERED -> CONNECTING -> SIGNALING -> WEBRTC_CONNECTING -> DATA_CHANNEL_OPENING -> CONNECTED
+        // Any active state can transition to DISCONNECTED or FAILED
+        if (next == ConnectionState.DISCONNECTED || next == ConnectionState.FAILED) return next
+
         return when (current) {
-            ConnectionState.DISCONNECTED -> if (next == ConnectionState.CONNECTING || next == ConnectionState.RECONNECTING) next else current
-            ConnectionState.CONNECTING -> if (next == ConnectionState.CONNECTED || next == ConnectionState.DISCONNECTED) next else current
-            ConnectionState.CONNECTED -> if (next == ConnectionState.DEGRADED || next == ConnectionState.DISCONNECTED) next else current
-            ConnectionState.DEGRADED -> if (next == ConnectionState.CONNECTED || next == ConnectionState.RECONNECTING || next == ConnectionState.DISCONNECTED) next else current
-            ConnectionState.RECONNECTING -> if (next == ConnectionState.CONNECTED || next == ConnectionState.DISCONNECTED) next else current
+            ConnectionState.REGISTERED -> if (next == ConnectionState.CONNECTING) next else current
+            ConnectionState.DISCONNECTED, ConnectionState.FAILED -> if (next == ConnectionState.CONNECTING || next == ConnectionState.RECONNECTING) next else current
+            ConnectionState.CONNECTING -> if (next == ConnectionState.SIGNALING) next else current
+            ConnectionState.SIGNALING -> if (next == ConnectionState.WEBRTC_CONNECTING) next else current
+            ConnectionState.WEBRTC_CONNECTING -> if (next == ConnectionState.DATA_CHANNEL_OPENING) next else current
+            ConnectionState.DATA_CHANNEL_OPENING -> if (next == ConnectionState.CONNECTED) next else current
+            ConnectionState.CONNECTED -> if (next == ConnectionState.DEGRADED) next else current
+            ConnectionState.DEGRADED -> if (next == ConnectionState.CONNECTED || next == ConnectionState.RECONNECTING) next else current
+            ConnectionState.RECONNECTING -> if (next == ConnectionState.CONNECTED) next else current
         }
     }
 

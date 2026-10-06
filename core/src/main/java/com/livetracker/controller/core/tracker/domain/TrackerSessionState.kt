@@ -5,7 +5,7 @@ import com.livetracker.controller.core.auth.domain.ServicePermission
 data class TrackerSessionState(
     val deviceId: TrackerId,
     val displayName: String = "",
-    val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
+    val connectionState: ConnectionState = ConnectionState.REGISTERED,
     val signalingState: String = "CLOSED",
     val webrtcState: String = "CLOSED",
     val heartbeatState: HeartbeatState = HeartbeatState(),

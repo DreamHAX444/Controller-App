@@ -43,4 +43,17 @@ class FakeTrackerTransport(
     fun setConnectionState(state: ConnectionState) {
         _connectionState.value = state
     }
+    
+    suspend fun progressToConnected() {
+        setConnectionState(ConnectionState.CONNECTING)
+        kotlinx.coroutines.yield()
+        setConnectionState(ConnectionState.SIGNALING)
+        kotlinx.coroutines.yield()
+        setConnectionState(ConnectionState.WEBRTC_CONNECTING)
+        kotlinx.coroutines.yield()
+        setConnectionState(ConnectionState.DATA_CHANNEL_OPENING)
+        kotlinx.coroutines.yield()
+        setConnectionState(ConnectionState.CONNECTED)
+        kotlinx.coroutines.yield()
+    }
 }

@@ -7,10 +7,10 @@ The Controller App is being rebuilt from scratch as a secure, reliable, high-per
 Phase 0.1 - Security Foundation & 4-Digit PIN implemented. Forensic Audit completed and fixes applied.
 
 ## Current Development Phase
-Phase 2.2 — Tracker Heartbeat & Connection Health
+Phase 2.5 — WebRTC Data Channel & Command/Event Transport
 
 Status:
-COMPLETE (HeartbeatMonitor implemented with precise state transitions per Tracker. Fully unit tested with 20 exhaustive timing and transition test cases using StandardTestDispatcher.)
+COMPLETE (Implemented DefaultDataChannelTransport for Command/Event handling. Implemented DefaultTrackerTransport to orchestrate WebRTC session state and signaling, wiring up the DataChannel component. Addressed unit test concurrency issues on TestCoroutineScheduler. Verified compilation and all unit tests passed.)
 
 ## Architecture Status
 Controller architecture is being rebuilt from scratch.
@@ -104,6 +104,27 @@ The Tracker App is the integration target.
   - Used `TestTimeSource` abstracting system time for reproducible, exact-time tests in unit tests.
   - Implemented `HeartbeatHealth` state transitions correctly handling multiple concurrent trackers (DEGRADED, LOST, HEALTHY).
   - Designed and executed 20 rigorous test cases in `TrackerSessionManagerHeartbeatTest.kt` verifying timeout behavior, race conditions, edge conditions for revival, and timing nuances related to exact delays on the Coroutine Test Dispatcher.
+- Phase 2.3 (Signaling Foundation) implemented:
+  - Mapped protocol messages based on Tracker App's existing WebRTC signaling messages (`SESSION_ENDED`, `OFFER`, `ANSWER`, `READY`).
+  - Created `SignalingMessage`, `SignalingState`, and `SignalingTransport` abstractions to handle protocol specifics.
+  - Implemented `DefaultSignalingManager` acting as an isolated session registry (`ConcurrentHashMap`).
+  - Implemented `DefaultSignalingSession` state machine (`DISCONNECTED` -> `CONNECTING` -> `CONNECTED` -> `NEGOTIATING` -> `READY`).
+  - Wrote robust tests that uncovered an issue with standard Coroutine `CancellationException` being caught during shutdown sequences; fixed it via proper rethrowing.
+  - Test coverage completed for Manager and Session states. All tests pass successfully.
+- Phase 2.4 (WebRTC Session Foundation) implemented:
+  - Defined Controller-side WebRTC domain abstractions in `core` (`WebRtcSession`, `WebRtcSessionFactory`, `WebRtcSessionManager`, `WebRtcConfiguration`, `WebRtcState`).
+  - Created `WebRtcSessionOrchestrator` in `core` to coordinate SDPs and ICE candidates between `SignalingSession` and `WebRtcSession`.
+  - Evaluated `tracker_app` compatibility and confirmed identical WebRTC signaling and data channel patterns.
+  - Imported `io.getstream:stream-webrtc-android:1.1.1` in the `app` module for infrastructure WebRTC support, matching `tracker_app`.
+  - Implemented concrete `AndroidWebRtcSession` and `AndroidWebRtcSessionFactory` in `app` (infrastructure layer).
+- Phase 2.5 (WebRTC Data Channel & Command/Event Transport) implemented:
+  - Designed `DataChannelTransport` to abstract `TrackerDataChannel` interactions (sending JSON-encoded commands and emitting parsed `TrackerEvent`s).
+  - Developed `DefaultDataChannelTransport` utilizing Kotlinx Serialization (`Json`) to encode commands and decode event payloads securely.
+  - Implemented command-response correlation using a `MutableMap` of `CompletableDeferred` mapped by `commandId` and guarded by a `Mutex`.
+  - Used Kotlin Coroutines `withTimeout` to gracefully handle command timeouts, emitting `CommandResult.Timeout`.
+  - Wired `DefaultDataChannelTransport` into `DefaultTrackerTransport`, launching observation loops to collect incoming WebRTC state changes and start the data channel once `CONNECTED`.
+  - Fixed test flakiness related to Coroutine Testing dispatchers (`UnconfinedTestDispatcher`) in `DefaultTrackerTransportTest`.
+  - Confirmed all tests for the session layer pass.
 - Updated `.gitignore` to properly ignore sub-module build directories (`build/` instead of `/build`).
 - Performed `ponytail-audit`: deleted `convert.py`, `generate_icons.py`, `ControllerApplication.kt`, and untracked `app/build/` and `core/build/` from git.
 

@@ -51,10 +51,14 @@ class DefaultSignalingSession(
                         transport.receiveMessages(sessionId).collect { msg ->
                             handleIncomingMessage(msg)
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         fail(SignalingError.TransportError("Receive failed", e))
                     }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 fail(SignalingError.TransportError("Connection failed", e))
             }
@@ -133,7 +137,7 @@ class DefaultSignalingSession(
                 val msg = SignalingMessage(
                     sessionId = sessionId,
                     trackerId = trackerId,
-                    type = SignalingMessageType.STOP_REQUEST,
+                    type = SignalingMessageType.SESSION_ENDED,
                     timestamp = System.currentTimeMillis(),
                     messageId = UUID.randomUUID().toString(),
                     payload = null
