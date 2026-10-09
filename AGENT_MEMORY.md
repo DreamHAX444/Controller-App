@@ -7,10 +7,10 @@ The Controller App is being rebuilt from scratch as a secure, reliable, high-per
 Phase 0.1 - Security Foundation & 4-Digit PIN implemented. Forensic Audit completed and fixes applied.
 
 ## Current Development Phase
-Phase 2.6 — End-to-End Tracker Session Transport Integration
+Phase 4.0 — Device Management & Diagnostics Foundation
 
 Status:
-COMPLETE (Integrated Signaling Foundation, WebRTC Session Foundation, and DataChannel into DefaultTrackerTransport. Corrected state machine transition mapping. Fixed initial DISCONNECTED emission bugs from state flows and updated unit tests to correctly simulate Tracker-initiated DataChannel creation. Verified compilation and all unit tests passed.)
+COMPLETE (Built `TrackerDevice`, `DeviceHealthClassifier`, `InMemoryTrackerDeviceRepository`, `DefaultDeviceManager`, `DefaultTrackerDiagnosticsProvider`, `DiagnosticHistoryBuffer`, and `DefaultDeviceSelectionManager`. Verified robust test coverage for domain layers and data repository locking mechanisms).
 
 ## Architecture Status
 Controller architecture is being rebuilt from scratch.
@@ -128,6 +128,19 @@ The Tracker App is the integration target.
   - Handled DataChannel creation sequence where the Tracker is the initiator, dropping unexpected data channels except for `"commands"`.
   - Fixed `DISCONNECTED` state emission from `SignalingSession.state` colliding with `CONNECTING` phase logic.
   - Confirmed all tests for the session layer pass.
+- Phase 3.0 (Tracker Connection Reliability & Recovery Architecture) implemented:
+  - Designed `ReconnectPolicy` and `TrackerRecoveryManager` with exponential backoff logic and generation-based transport isolation.
+  - Integrated `NetworkStateProvider` to suspend recovery attempts while network is unavailable.
+  - Refactored `DefaultTrackerSessionManager` to utilize `TrackerRecoveryManager` instead of managing reconnections manually.
+  - Corrected test cases to properly simulate concurrent transport suspensions with `kotlinx.coroutines.yield()` and test scheduler timeline explicit advancing via `testScope.advanceTimeBy()` in place of `advanceUntilIdle()`.
+  - 43/43 recovery isolation and reconnection tests passed.
+- Phase 4.0 (Device Management & Diagnostics Foundation) implemented:
+  - Established `TrackerDevice` and `DeviceHealth` domain models to track connections, batteries, and general health statuses for trackers.
+  - Built `DeviceHealthClassifier` mapping low-level transport details (`ConnectionState` and `HeartbeatHealth`) to aggregated high-level user-facing status.
+  - Implemented thread-safe `InMemoryTrackerDeviceRepository` using `Mutex` to manage the list of registered devices efficiently.
+  - Developed `DefaultTrackerDiagnosticsProvider` and `DiagnosticHistoryBuffer` merging runtime session attributes and stored lifecycle events with limits to provide comprehensive insights.
+  - Implemented `DeviceSelectionManager` and `DefaultDeviceSelectionManager` establishing the foundation for active device UI focus.
+  - Tested all components thoroughly; unit tests pass in `testDebugUnitTest` variant.
 - Updated `.gitignore` to properly ignore sub-module build directories (`build/` instead of `/build`).
 - Performed `ponytail-audit`: deleted `convert.py`, `generate_icons.py`, `ControllerApplication.kt`, and untracked `app/build/` and `core/build/` from git.
 
@@ -158,7 +171,7 @@ Communication is via existing control/signaling connection. Tracker app provides
 `assembleDebug` completes successfully. Tests pass (`testDebugUnitTest`).
 
 ## Pending Work
-- Proceed to Phase 3.0 or the next required Phase step.
+- Proceed to Phase 5.0 (Map + Live Location) or the next required Phase step.
 
 ## Important Rule
 After every meaningful project change, update this file before reporting the task as complete.

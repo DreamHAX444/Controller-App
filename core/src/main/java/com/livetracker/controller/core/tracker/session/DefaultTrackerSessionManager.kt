@@ -10,10 +10,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
+import com.livetracker.controller.core.tracker.location.domain.ProcessLocationUpdateUseCase
+
 class DefaultTrackerSessionManager(
     private val scope: CoroutineScope,
     private val policy: HeartbeatPolicy = HeartbeatPolicy(),
     private val timeSource: TimeSource = DefaultTimeSource,
+    private val processLocationUpdate: ProcessLocationUpdateUseCase? = null,
     private val transportFactory: (TrackerId) -> TrackerTransport
 ) : TrackerSessionManager {
 
@@ -70,8 +73,22 @@ class DefaultTrackerSessionManager(
                         is TrackerEvent.Error -> {
                             context.stateFlow.update { it.copy(lastError = event.error) }
                         }
+                        is TrackerEvent.LocationUpdated -> {
+                            processLocationUpdate?.invoke(event)
+                        }
                         else -> {
                             // other events handled elsewhere or update state as needed
+                        }
+                    }
+                }
+            }
+
+            launch {
+                context.stateFlow.collect { state ->
+                    if (state.heartbeatState.health == HeartbeatHealth.LOST) {
+                        val currentConn = state.connectionState
+                        if (currentConn != ConnectionState.DISCONNECTED && currentConn != ConnectionState.FAILED) {
+                            (transport as? com.livetracker.controller.core.tracker.recovery.TrackerRecoveryManager)?.triggerRecovery("Heartbeat lost")
                         }
                     }
                 }
@@ -87,13 +104,16 @@ class DefaultTrackerSessionManager(
         return when (current) {
             ConnectionState.REGISTERED -> if (next == ConnectionState.CONNECTING) next else current
             ConnectionState.DISCONNECTED, ConnectionState.FAILED -> if (next == ConnectionState.CONNECTING || next == ConnectionState.RECONNECTING) next else current
-            ConnectionState.CONNECTING -> if (next == ConnectionState.SIGNALING) next else current
-            ConnectionState.SIGNALING -> if (next == ConnectionState.WEBRTC_CONNECTING) next else current
-            ConnectionState.WEBRTC_CONNECTING -> if (next == ConnectionState.DATA_CHANNEL_OPENING) next else current
-            ConnectionState.DATA_CHANNEL_OPENING -> if (next == ConnectionState.CONNECTED) next else current
+            ConnectionState.CONNECTING -> if (next == ConnectionState.SIGNALING || next == ConnectionState.SIGNALING_RECOVERY) next else current
+            ConnectionState.SIGNALING -> if (next == ConnectionState.WEBRTC_CONNECTING || next == ConnectionState.SIGNALING_RECOVERY) next else current
+            ConnectionState.WEBRTC_CONNECTING -> if (next == ConnectionState.DATA_CHANNEL_OPENING || next == ConnectionState.WEBRTC_RECOVERY) next else current
+            ConnectionState.DATA_CHANNEL_OPENING -> if (next == ConnectionState.CONNECTED || next == ConnectionState.DATA_CHANNEL_RECOVERY) next else current
             ConnectionState.CONNECTED -> if (next == ConnectionState.DEGRADED) next else current
             ConnectionState.DEGRADED -> if (next == ConnectionState.CONNECTED || next == ConnectionState.RECONNECTING) next else current
-            ConnectionState.RECONNECTING -> if (next == ConnectionState.CONNECTED) next else current
+            ConnectionState.RECONNECTING -> if (next == ConnectionState.SIGNALING_RECOVERY || next == ConnectionState.CONNECTED) next else current
+            ConnectionState.SIGNALING_RECOVERY -> if (next == ConnectionState.WEBRTC_RECOVERY) next else current
+            ConnectionState.WEBRTC_RECOVERY -> if (next == ConnectionState.DATA_CHANNEL_RECOVERY) next else current
+            ConnectionState.DATA_CHANNEL_RECOVERY -> if (next == ConnectionState.CONNECTED) next else current
         }
     }
 
