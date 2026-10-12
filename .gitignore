@@ -13,4 +13,4 @@ scratch/
 *.log
 test_*.txt
 *.py
-*.kts
+!scripts/generate_manifest.py
