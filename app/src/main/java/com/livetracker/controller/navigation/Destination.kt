@@ -1,6 +1,7 @@
 package com.livetracker.controller.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -16,7 +17,7 @@ sealed class Destination(val route: String, val title: String, val icon: ImageVe
     object Camera : Destination("services/camera", "Camera", Icons.Default.Face)
     object Audio : Destination("services/audio", "Audio", Icons.Default.Call)
     object ScreenCapture : Destination("services/screen", "Screen Capture", Icons.Default.Search)
-    object Files : Destination("services/files", "Files", Icons.Default.List)
+    object Files : Destination("services/files", "Files", Icons.AutoMirrored.Filled.List)
 
     // Administration
     object AdminMenu : Destination("admin", "Administration", Icons.Default.Lock)

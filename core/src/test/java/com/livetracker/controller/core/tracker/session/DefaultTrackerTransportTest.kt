@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -169,7 +170,7 @@ class DefaultTrackerTransportTest {
         ) { _, _ -> dataChannelTransport }
 
         transport.connect()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(ConnectionState.SIGNALING, transport.connectionState.value)
         val sigSession = signalingManager.getSession(TrackerId("t1")) as FakeSignalingSession
@@ -186,7 +187,7 @@ class DefaultTrackerTransportTest {
             messageId = "1",
             payload = OfferPayload("offer1", 0)
         ))
-        advanceUntilIdle()
+        runCurrent()
         
         // WebRTC session should receive the offer and generate an answer, which is sent via signaling
         assertEquals("offer1", webRtcSession.remoteOffer?.sdp)
@@ -201,26 +202,26 @@ class DefaultTrackerTransportTest {
             messageId = "2",
             payload = IceCandidatePayload("remote-ice", "mid", 0, 0)
         ))
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(1, webRtcSession.addedIceCandidates.size)
 
         // Simulate local ICE Candidate
         webRtcSession.emitLocalIceCandidate(IceCandidatePayload("local-ice", "mid2", 1, 0))
-        advanceUntilIdle()
+        runCurrent()
         assertTrue(sigSession.sentMessages.any { it.type == SignalingMessageType.ICE_CANDIDATE && (it.payload as IceCandidatePayload).candidate == "local-ice" })
 
         // Simulate WebRTC connection success
         webRtcSession._state.value = WebRtcState.CONNECTING
-        advanceUntilIdle()
+        runCurrent()
         webRtcSession._state.value = WebRtcState.CONNECTED
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(ConnectionState.DATA_CHANNEL_OPENING, transport.connectionState.value)
 
         // Simulate incoming DataChannel
         val fakeDc = FakeTrackerDataChannel()
         webRtcSession.emitIncomingDataChannel(fakeDc)
-        advanceUntilIdle()
+        runCurrent()
 
         // Transport should be CONNECTED and DataChannel should be setup
         assertEquals(ConnectionState.CONNECTED, transport.connectionState.value)

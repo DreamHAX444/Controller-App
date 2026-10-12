@@ -16,6 +16,8 @@ data class MapMarker(
     val speed: Float?,
     val timestamp: Long,
     val connectionState: ConnectionState,
-    val healthState: DeviceHealth,
-    val isSelected: Boolean
+    val healthState: DeviceHealth = DeviceHealth.HEALTHY,
+    val isSelected: Boolean,
+    val batteryLevel: Int? = null,
+    val networkState: String? = null
 )

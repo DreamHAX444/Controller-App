@@ -1,0 +1,224 @@
+name: Build and Publish Production Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'v*.*'
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_channel:
+        description: 'Release Channel (stable, beta, canary)'
+        required: true
+        default: 'stable'
+      mandatory:
+        description: 'Is this update mandatory?'
+        type: boolean
+        required: true
+        default: false
+      release_notes:
+        description: 'Custom release notes (leave blank to extract from tag or commits)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build, Sign, Verify and Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle Packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Configure Production Signing Keystore
+        id: signing_config
+        run: |
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding production keystore from CI secrets..."
+            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > "$HOME/release.keystore"
+            echo "RELEASE_STORE_FILE=$HOME/release.keystore" >> $GITHUB_ENV
+            echo "RELEASE_STORE_PASSWORD=${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "RELEASE_KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "RELEASE_KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "has_prod_keystore=true" >> $GITHUB_OUTPUT
+          else
+            echo "No production keystore secret configured; building with repository debug key fallback."
+            echo "has_prod_keystore=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Strip Windows-specific Gradle java.home for CI
+        run: |
+          sed -i '/org.gradle.java.home/d' gradle.properties
+
+      - name: Run Unit Tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :core:testDebugUnitTest :app:testDebugUnitTest --stacktrace
+
+      - name: Build Release APK
+        run: |
+          ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Verify Signed APK & Extract Checksums
+        id: verify_apk
+        run: |
+          RAW_APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$RAW_APK_PATH" ] || [ ! -f "$RAW_APK_PATH" ]; then
+            echo "ERROR: Release APK not found!"
+            exit 1
+          fi
+          echo "Found release APK at: $RAW_APK_PATH"
+
+          # Standardize release APK filename to app-release.apk
+          TARGET_APK="app/build/outputs/apk/release/app-release.apk"
+          if [ "$RAW_APK_PATH" != "$TARGET_APK" ]; then
+            cp "$RAW_APK_PATH" "$TARGET_APK"
+          fi
+          APK_PATH="$TARGET_APK"
+
+          # Locate apksigner in Android SDK build-tools
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | sort -V | tail -n 1)
+          if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+            echo "ERROR: apksigner tool not found in $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          echo "Using apksigner: $APKSIGNER"
+
+          # Verify signature with apksigner
+          $APKSIGNER verify --verbose "$APK_PATH"
+          CERT_FINGERPRINT=$($APKSIGNER verify --print-certs "$APK_PATH" | grep "certificate SHA-256 digest" | head -n 1 | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
+          echo "Signing Certificate Fingerprint: $CERT_FINGERPRINT"
+
+          # Calculate SHA-256 and byte size
+          SHA256_HASH=$(sha256sum "$APK_PATH" | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+          SIZE_BYTES=$(stat -c%s "$APK_PATH")
+          echo "APK SHA-256: $SHA256_HASH"
+          echo "APK Size (bytes): $SIZE_BYTES"
+
+          # Determine Tag and Version Name
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          VERSION_CODE=$(grep 'versionCode =' app/build.gradle.kts | head -n 1 | awk '{print $NF}')
+          VERSION_NAME_GRADLE=$(grep 'versionName =' app/build.gradle.kts | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')
+
+          if [[ "$GITHUB_REF" != refs/tags/* ]] || [[ "$TAG_NAME" != v* ]]; then
+            TAG_NAME="v$VERSION_NAME_GRADLE"
+            VERSION_NAME="$VERSION_NAME_GRADLE"
+          else
+            VERSION_NAME="${TAG_NAME#v}"
+          fi
+
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA256_HASH" >> $GITHUB_OUTPUT
+          echo "size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
+          echo "cert_fingerprint=$CERT_FINGERPRINT" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Generate Online Update Manifest
+        id: generate_manifest
+        run: |
+          CHANNEL="${{ github.event.inputs.release_channel || 'stable' }}"
+          IS_MANDATORY="${{ github.event.inputs.mandatory || 'false' }}"
+          CUSTOM_NOTES="${{ github.event.inputs.release_notes }}"
+          if [ -z "$CUSTOM_NOTES" ]; then
+            CUSTOM_NOTES="Release ${{ steps.verify_apk.outputs.tag_name }}: Core telemetry updates and self-update engine."
+          fi
+
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.verify_apk.outputs.tag_name }}/app-release.apk"
+          PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          mkdir -p release
+          cat <<EOF > release/update-manifest.json
+{
+  "schemaVersion": 1,
+  "appId": "com.livetracker.controller",
+  "channel": "$CHANNEL",
+  "versionCode": ${{ steps.verify_apk.outputs.version_code }},
+  "versionName": "${{ steps.verify_apk.outputs.version_name }}",
+  "minimumSupportedVersionCode": 1,
+  "mandatory": $IS_MANDATORY,
+  "publishedAt": "$PUBLISHED_AT",
+  "releaseNotes": "$CUSTOM_NOTES",
+  "apkUrl": "$DOWNLOAD_URL",
+  "apkSizeBytes": ${{ steps.verify_apk.outputs.size_bytes }},
+  "sha256": "${{ steps.verify_apk.outputs.sha256 }}",
+  "signingCertSha256": "${{ steps.verify_apk.outputs.cert_fingerprint }}"
+}
+EOF
+
+          echo "Generated release/update-manifest.json:"
+          cat release/update-manifest.json
+          cp release/update-manifest.json /tmp/update-manifest.json
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.verify_apk.outputs.tag_name }}
+          name: "Trace Controller ${{ steps.verify_apk.outputs.tag_name }}"
+          body: |
+            ## Trace Android Controller ${{ steps.verify_apk.outputs.tag_name }}
+
+            ### Release Metadata
+            - **Application ID**: `com.livetracker.controller`
+            - **Version Code**: `${{ steps.verify_apk.outputs.version_code }}`
+            - **Version Name**: `${{ steps.verify_apk.outputs.version_name }}`
+            - **Channel**: `${{ github.event.inputs.release_channel || 'stable' }}`
+            - **SHA-256**: `${{ steps.verify_apk.outputs.sha256 }}`
+            - **Size**: `${{ steps.verify_apk.outputs.size_bytes }} bytes`
+            - **Signing Fingerprint (SHA-256)**: `${{ steps.verify_apk.outputs.cert_fingerprint }}`
+
+            ### Verification Instructions
+            Verify downloaded APK integrity locally:
+            ```bash
+            sha256sum app-release.apk
+            # Output must match: ${{ steps.verify_apk.outputs.sha256 }}
+            ```
+          files: |
+            ${{ steps.verify_apk.outputs.apk_path }}
+            release/update-manifest.json
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit Updated Manifest to Repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main:main || true
+          git checkout main
+          git pull --rebase origin main || true
+          cp /tmp/update-manifest.json release/update-manifest.json
+          git add release/update-manifest.json
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(release): update manifest for ${{ steps.verify_apk.outputs.tag_name }} [skip ci]"
+            git push origin main
+          else
+            echo "Manifest already up to date on main; nothing to commit."
+          fi

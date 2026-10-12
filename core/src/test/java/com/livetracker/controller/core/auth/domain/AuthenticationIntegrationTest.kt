@@ -74,7 +74,7 @@ class AuthenticationIntegrationTest {
     }
 
     @Test
-    fun `active session with user transitioning to disabled is caught by AuthorizationEngine`() = runBlocking {
+    fun `disabled account invalidates active session`() = runBlocking {
         // Authenticate when active
         val user = seedUser("mutating-user", AccountStatus.ACTIVE)
         val authResult = authRepository.authenticate("mutating-user")

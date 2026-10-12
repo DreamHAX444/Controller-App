@@ -8,7 +8,6 @@ sealed interface MapState {
     
     data class Active(
         val selectionMode: DeviceSelection,
-        val markers: List<MapMarker>,
-        val lastUpdateTimestamp: Long = 0L
+        val markers: List<MapMarker>
     ) : MapState
 }

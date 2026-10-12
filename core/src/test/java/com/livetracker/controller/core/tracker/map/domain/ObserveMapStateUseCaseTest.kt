@@ -304,4 +304,35 @@ class ObserveMapStateUseCaseTest {
         
         assertEquals(50.0, (useCase().first() as MapState.Active).markers.first().latitude, 0.0)
     }
+
+    @Test
+    fun `propagates battery level and network state to marker`() = runTest {
+        val deviceRepo = FakeTrackerDeviceRepository()
+        val locRepo = InMemoryTrackerLocationRepository()
+        val summariesUseCase = ObserveDeviceSummariesUseCase(deviceRepo, locRepo)
+        
+        val selectionManager = FakeDeviceSelectionManager()
+        val timeSource = FakeTimeSource()
+        
+        val useCase = ObserveMapStateUseCase(summariesUseCase, selectionManager, timeSource)
+        
+        val d1 = TrackerId("d1")
+        deviceRepo.devicesFlow.value = listOf(
+            TrackerDevice(
+                deviceId = d1,
+                displayName = "Dev 1",
+                registrationTimestamp = 1000L,
+                batteryLevel = 85,
+                networkState = "CELLULAR"
+            )
+        )
+        locRepo.updateLocation(Location(d1, 10.0, 20.0, 5.0f, null, null, 1000L, LocationState.LIVE))
+        selectionManager.selectionFlow.value = DeviceSelection.All
+        
+        val mapState = useCase().first() as MapState.Active
+        assertEquals(1, mapState.markers.size)
+        val marker = mapState.markers.first()
+        assertEquals(85, marker.batteryLevel)
+        assertEquals("CELLULAR", marker.networkState)
+    }
 }

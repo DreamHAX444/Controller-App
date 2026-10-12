@@ -26,7 +26,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `process valid location update stores live location`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         val event = createEvent(timestamp = 1000L)
         useCase(event, currentTimeMs = 1000L)
         val loc = repo.getLocation(TrackerId("dev1")).first()
@@ -37,7 +37,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects latitude too high`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(lat = 91.0), currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -45,7 +45,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects latitude too low`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(lat = -91.0), currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -53,7 +53,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects longitude too high`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(lng = 181.0), currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -61,7 +61,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects longitude too low`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(lng = -181.0), currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -69,7 +69,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects negative accuracy`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(acc = -1.0f), currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -77,7 +77,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects negative speed`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(speed = -5.0f), currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -85,7 +85,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects future timestamp beyond tolerance`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy(futureToleranceMs = 5000))
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy(futureToleranceMs = 5000))
         useCase(createEvent(timestamp = 20000L), currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -93,7 +93,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `accepts future timestamp within tolerance`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy(futureToleranceMs = 5000))
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy(futureToleranceMs = 5000))
         useCase(createEvent(timestamp = 4000L), currentTimeMs = 1000L)
         assertNotNull(repo.getLocation(TrackerId("dev1")).first())
     }
@@ -101,7 +101,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects missing deviceId`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         val event = TrackerEvent.LocationUpdated("evt", TrackerId(""), 1000L, 10.0, 20.0, 5.0f)
         useCase(event, currentTimeMs = 1000L)
         assertNull(repo.getLocation(TrackerId("")).first())
@@ -111,7 +111,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `accepts ordered updates`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(timestamp = 1000L, lat = 10.0), currentTimeMs = 1000L)
         useCase(createEvent(timestamp = 2000L, lat = 20.0), currentTimeMs = 2000L)
         assertEquals(20.0, repo.getLocation(TrackerId("dev1")).first()?.latitude!!, 0.0)
@@ -120,7 +120,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects older out of order update`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(timestamp = 2000L, lat = 20.0), currentTimeMs = 2000L)
         useCase(createEvent(timestamp = 1000L, lat = 10.0), currentTimeMs = 3000L)
         assertEquals(20.0, repo.getLocation(TrackerId("dev1")).first()?.latitude!!, 0.0)
@@ -129,7 +129,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `rejects duplicate update`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(timestamp = 2000L, lat = 20.0), currentTimeMs = 2000L)
         useCase(createEvent(timestamp = 2000L, lat = 30.0), currentTimeMs = 2000L)
         assertEquals(20.0, repo.getLocation(TrackerId("dev1")).first()?.latitude!!, 0.0)
@@ -138,7 +138,7 @@ class ProcessLocationUpdateUseCaseTest {
     @Test
     fun `late event from disconnected tracker is safely rejected if old`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
-        val useCase = ProcessLocationUpdateUseCase(repo, LocationFreshnessPolicy())
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
         useCase(createEvent(timestamp = 5000L, lat = 20.0), currentTimeMs = 5000L)
         useCase(createEvent(timestamp = 1000L, lat = 10.0), currentTimeMs = 6000L)
         assertEquals(20.0, repo.getLocation(TrackerId("dev1")).first()?.latitude!!, 0.0)
@@ -149,7 +149,7 @@ class ProcessLocationUpdateUseCaseTest {
     fun `process old location update stores stale location`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
         val policy = LocationFreshnessPolicy(staleThresholdMs = 15000, offlineThresholdMs = 60000)
-        val useCase = ProcessLocationUpdateUseCase(repo, policy)
+        val useCase = ProcessLocationUpdateUseCase(repo, null, policy)
         useCase(createEvent(timestamp = 1000L), currentTimeMs = 20000L)
         assertEquals(LocationState.STALE, repo.getLocation(TrackerId("dev1")).first()?.state)
     }
@@ -158,8 +158,21 @@ class ProcessLocationUpdateUseCaseTest {
     fun `process very old location update stores offline location`() = runTest {
         val repo = InMemoryTrackerLocationRepository()
         val policy = LocationFreshnessPolicy(staleThresholdMs = 15000, offlineThresholdMs = 60000)
-        val useCase = ProcessLocationUpdateUseCase(repo, policy)
+        val useCase = ProcessLocationUpdateUseCase(repo, null, policy)
         useCase(createEvent(timestamp = 1000L), currentTimeMs = 70000L)
         assertEquals(LocationState.OFFLINE, repo.getLocation(TrackerId("dev1")).first()?.state)
+    }
+
+    @Test
+    fun `processes multiple devices independently`() = runTest {
+        val repo = InMemoryTrackerLocationRepository()
+        val useCase = ProcessLocationUpdateUseCase(repo, null, LocationFreshnessPolicy())
+        val dev1 = TrackerId("dev1")
+        val dev2 = TrackerId("dev2")
+        useCase(createEvent(deviceId = dev1, lat = 10.0), currentTimeMs = 1000L)
+        useCase(createEvent(deviceId = dev2, lat = 20.0), currentTimeMs = 1000L)
+        
+        assertEquals(10.0, repo.getLocation(dev1).first()?.latitude!!, 0.0)
+        assertEquals(20.0, repo.getLocation(dev2).first()?.latitude!!, 0.0)
     }
 }

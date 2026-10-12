@@ -1,5 +1,6 @@
 package com.livetracker.controller.auth.pin
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -19,7 +20,7 @@ fun PinScreen(
     viewModel: PinViewModel,
     onAuthenticated: () -> Unit
 ) {
-    val authState by viewModel.authState.collectAsState()
+    val authState by viewModel.authState.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
     
     // Automatically submit when 4 digits are entered
@@ -58,9 +59,10 @@ fun PinScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "LTC", 
+                    text = "Trace", 
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
             

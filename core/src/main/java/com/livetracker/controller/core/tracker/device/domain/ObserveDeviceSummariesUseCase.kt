@@ -4,6 +4,7 @@ import com.livetracker.controller.core.tracker.location.domain.LocationState
 import com.livetracker.controller.core.tracker.location.domain.TrackerLocationRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 class ObserveDeviceSummariesUseCase(
     private val deviceRepository: TrackerDeviceRepository,
@@ -23,6 +24,6 @@ class ObserveDeviceSummariesUseCase(
                     locationState = locationRecord?.state ?: LocationState.UNKNOWN
                 )
             }
-        }
+        }.distinctUntilChanged()
     }
 }

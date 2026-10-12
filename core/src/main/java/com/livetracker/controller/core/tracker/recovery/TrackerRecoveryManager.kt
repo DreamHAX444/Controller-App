@@ -74,19 +74,14 @@ class TrackerRecoveryManager(
         currentTransport = newTransport
         
         transportObserveJob = scope.launch {
-            println("DEBUG-TRM: Observer job started! nextGen=$nextGen")
             launch {
-                println("DEBUG-TRM: State collector started! nextGen=$nextGen")
                 try {
                     newTransport.connectionState.collect { state ->
-                        println("DEBUG-TRM: State collector received state: $state for nextGen: $nextGen (current: $connectionGeneration)")
                         if (connectionGeneration != nextGen) return@collect
                         
                         if (!isRecovery) {
                             _connectionState.value = state
-                            println("DEBUG-TRM: Manager state updated to: $state (isRecovery=false)")
                         } else {
-                            println("DEBUG-TRM: Manager state processing recovery state: $state")
                             when (state) {
                                 ConnectionState.REGISTERED,
                                 ConnectionState.CONNECTING,
@@ -101,12 +96,11 @@ class TrackerRecoveryManager(
                         }
                         
                         if ((state == ConnectionState.DISCONNECTED || state == ConnectionState.FAILED) && !isIntentionallyDisconnected) {
-                            println("DEBUG-TRM: Triggering recovery because of $state")
                             triggerRecovery("Transport disconnected")
                         }
                     }
                 } catch (e: Exception) {
-                    println("DEBUG-TRM: State collector crashed with $e")
+                    // Suppress or log properly in production logging framework
                 }
             }
             
@@ -126,29 +120,23 @@ class TrackerRecoveryManager(
     }
     
     fun triggerRecovery(reason: String) {
-        println("DEBUG-TRM: triggerRecovery() called! isIntentionallyDisconnected=$isIntentionallyDisconnected, recoveryJob.isActive=${recoveryJob?.isActive}")
         if (isIntentionallyDisconnected) return
         if (recoveryJob?.isActive == true) return 
         
         _connectionState.value = ConnectionState.RECONNECTING
         
-        println("DEBUG-TRM: About to launch recoveryJob in scope=$scope")
         recoveryJob = scope.launch {
-            println("DEBUG-TRM: recoveryJob started")
             recoveryEvents.emit(RecoveryEvent.RecoveryStarted(deviceId, timeSource.currentTimeMillis(), currentAttempt, reason))
             
             while (isActive) {
                 currentAttempt++
-                println("DEBUG-TRM: Recovery attempt $currentAttempt")
                 if (currentAttempt > policy.maxAttempts) {
-                    println("DEBUG-TRM: Recovery max attempts reached")
                     recoveryEvents.emit(RecoveryEvent.RecoveryExhausted(deviceId, timeSource.currentTimeMillis(), currentAttempt))
                     _connectionState.value = ConnectionState.FAILED
                     break
                 }
                 
                 val delayMs = policy.calculateDelay(currentAttempt)
-                println("DEBUG-TRM: Delaying for $delayMs ms")
                 
                 networkStateProvider?.let { provider ->
                     if (provider.networkState.value == NetworkState.LOST) {
@@ -159,20 +147,16 @@ class TrackerRecoveryManager(
                 delay(delayMs)
                 if (!isActive) break
                 
-                println("DEBUG-TRM: Delay finished, starting attempt")
                 recoveryEvents.emit(RecoveryEvent.RecoveryAttemptStarted(deviceId, timeSource.currentTimeMillis(), currentAttempt))
                 
                 _connectionState.value = ConnectionState.SIGNALING_RECOVERY
                 
                 try {
-                    println("DEBUG-TRM: Calling startNewGeneration(isRecovery=true)")
                     startNewGeneration(isRecovery = true)
-                    println("DEBUG-TRM: startNewGeneration finished")
                     
                     val finalState = currentTransport!!.connectionState.first { 
                         it == ConnectionState.CONNECTED || it == ConnectionState.DISCONNECTED || it == ConnectionState.FAILED 
                     }
-                    println("DEBUG-TRM: Transport reached final state: $finalState")
                     
                     if (finalState == ConnectionState.CONNECTED) {
                         _connectionState.value = ConnectionState.CONNECTED
@@ -183,10 +167,8 @@ class TrackerRecoveryManager(
                         throw Exception("Transport reached terminal state before CONNECTED")
                     }
                 } catch (e: CancellationException) {
-                    println("DEBUG-TRM: Recovery cancelled: $e")
                     throw e
                 } catch (e: Exception) {
-                    println("DEBUG-TRM: Recovery attempt failed: $e")
                     recoveryEvents.emit(RecoveryEvent.RecoveryAttemptFailed(deviceId, timeSource.currentTimeMillis(), currentAttempt, e))
                 }
             }

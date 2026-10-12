@@ -7,6 +7,7 @@ import com.livetracker.controller.core.tracker.device.domain.TrackerDeviceSummar
 import com.livetracker.controller.core.tracker.location.domain.LocationState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 import com.livetracker.controller.core.tracker.session.TimeSource
 import com.livetracker.controller.core.tracker.session.DefaultTimeSource
@@ -26,22 +27,14 @@ class ObserveMapStateUseCase(
                 return@combine MapState.Empty
             }
             
-            val visibleSummaries = when (selection) {
-                DeviceSelection.All -> summaries
-                DeviceSelection.Empty -> emptyList()
-                is DeviceSelection.Single -> summaries.filter { it.device.deviceId == selection.deviceId }
-                is DeviceSelection.Multiple -> summaries.filter { it.device.deviceId in selection.deviceIds }
-            }
-            
-            if (visibleSummaries.isEmpty()) {
+            if (selection == DeviceSelection.Empty) {
                 return@combine MapState.Active(
                     selectionMode = selection,
-                    markers = emptyList(),
-                    lastUpdateTimestamp = timeSource.currentTimeMillis()
+                    markers = emptyList()
                 )
             }
             
-            val markers = visibleSummaries.mapNotNull { summary ->
+            val markers = summaries.mapNotNull { summary ->
                 // Map only if there's a valid location that we can plot
                 val loc = summary.latestLocation
                 if (loc != null && summary.locationState != LocationState.UNKNOWN) {
@@ -57,7 +50,9 @@ class ObserveMapStateUseCase(
                         timestamp = loc.timestamp,
                         connectionState = summary.device.connectionState,
                         healthState = summary.device.health,
-                        isSelected = isSelected(summary, selection)
+                        isSelected = isSelected(summary, selection),
+                        batteryLevel = summary.device.batteryLevel,
+                        networkState = summary.device.networkState
                     )
                 } else {
                     null
@@ -66,10 +61,9 @@ class ObserveMapStateUseCase(
             
             MapState.Active(
                 selectionMode = selection,
-                markers = markers,
-                lastUpdateTimestamp = timeSource.currentTimeMillis()
+                markers = markers
             )
-        }
+        }.distinctUntilChanged()
     }
     
     private fun isSelected(summary: TrackerDeviceSummary, selection: DeviceSelection): Boolean {

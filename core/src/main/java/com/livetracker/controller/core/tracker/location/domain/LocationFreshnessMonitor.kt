@@ -11,7 +11,8 @@ class LocationFreshnessMonitor(
     private val repository: TrackerLocationRepository,
     private val policy: LocationFreshnessPolicy = LocationFreshnessPolicy(),
     private val scope: CoroutineScope,
-    private val checkIntervalMs: Long = 5000L
+    private val checkIntervalMs: Long = 5000L,
+    private val timeProvider: () -> Long = { System.currentTimeMillis() }
 ) {
     private var job: Job? = null
     
@@ -21,7 +22,7 @@ class LocationFreshnessMonitor(
             while (isActive) {
                 delay(checkIntervalMs)
                 val locations = repository.getAllLocations().firstOrNull() ?: emptyList()
-                val now = System.currentTimeMillis()
+                val now = timeProvider()
                 
                 for (location in locations) {
                     val newState = policy.evaluate(location.timestamp, now)

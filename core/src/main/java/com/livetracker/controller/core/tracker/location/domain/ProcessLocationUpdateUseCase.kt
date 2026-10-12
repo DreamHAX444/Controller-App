@@ -1,9 +1,12 @@
 package com.livetracker.controller.core.tracker.location.domain
 
 import com.livetracker.controller.core.tracker.domain.TrackerEvent
+import com.livetracker.controller.core.tracker.geofence.domain.EvaluateGeoFencesUseCase
+import kotlinx.coroutines.flow.first
 
 class ProcessLocationUpdateUseCase(
     private val repository: TrackerLocationRepository,
+    private val evaluateGeoFencesUseCase: EvaluateGeoFencesUseCase? = null,
     private val policy: LocationFreshnessPolicy = LocationFreshnessPolicy()
 ) {
     suspend operator fun invoke(event: TrackerEvent.LocationUpdated, currentTimeMs: Long = System.currentTimeMillis()) {
@@ -16,6 +19,11 @@ class ProcessLocationUpdateUseCase(
         val state = policy.evaluate(event.timestamp, currentTimeMs)
         if (state == LocationState.UNKNOWN) return
 
+        val currentLocation = repository.getLocation(event.deviceId).first()
+        if (currentLocation != null && event.timestamp <= currentLocation.timestamp) {
+            return
+        }
+
         val location = Location(
             deviceId = event.deviceId,
             latitude = event.latitude,
@@ -27,5 +35,6 @@ class ProcessLocationUpdateUseCase(
             state = state
         )
         repository.updateLocation(location)
+        evaluateGeoFencesUseCase?.invoke(location)
     }
 }

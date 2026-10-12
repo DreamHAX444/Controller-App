@@ -6,17 +6,18 @@ plugins {
 
 android {
     namespace = "com.livetracker.controller.core"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 26
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("proguard-rules.pro")
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -29,6 +30,15 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 }
 

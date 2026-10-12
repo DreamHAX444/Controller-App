@@ -8,3 +8,9 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+.kotlin/
+scratch/
+*.log
+test_*.txt
+*.py
+*.kts
