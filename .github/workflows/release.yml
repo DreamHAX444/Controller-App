@@ -142,38 +142,19 @@ jobs:
 
       - name: Generate Online Update Manifest
         id: generate_manifest
+        env:
+          CHANNEL: ${{ github.event.inputs.release_channel || 'stable' }}
+          IS_MANDATORY: ${{ github.event.inputs.mandatory || 'false' }}
+          CUSTOM_NOTES: ${{ github.event.inputs.release_notes }}
+          TAG_NAME: ${{ steps.verify_apk.outputs.tag_name }}
+          DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.verify_apk.outputs.tag_name }}/app-release.apk
+          VERSION_CODE: ${{ steps.verify_apk.outputs.version_code }}
+          VERSION_NAME: ${{ steps.verify_apk.outputs.version_name }}
+          SIZE_BYTES: ${{ steps.verify_apk.outputs.size_bytes }}
+          SHA256: ${{ steps.verify_apk.outputs.sha256 }}
+          CERT_FINGERPRINT: ${{ steps.verify_apk.outputs.cert_fingerprint }}
         run: |
-          CHANNEL="${{ github.event.inputs.release_channel || 'stable' }}"
-          IS_MANDATORY="${{ github.event.inputs.mandatory || 'false' }}"
-          CUSTOM_NOTES="${{ github.event.inputs.release_notes }}"
-          if [ -z "$CUSTOM_NOTES" ]; then
-            CUSTOM_NOTES="Release ${{ steps.verify_apk.outputs.tag_name }}: Core telemetry updates and self-update engine."
-          fi
-
-          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.verify_apk.outputs.tag_name }}/app-release.apk"
-          PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          mkdir -p release
-          cat <<EOF > release/update-manifest.json
-{
-  "schemaVersion": 1,
-  "appId": "com.livetracker.controller",
-  "channel": "$CHANNEL",
-  "versionCode": ${{ steps.verify_apk.outputs.version_code }},
-  "versionName": "${{ steps.verify_apk.outputs.version_name }}",
-  "minimumSupportedVersionCode": 1,
-  "mandatory": $IS_MANDATORY,
-  "publishedAt": "$PUBLISHED_AT",
-  "releaseNotes": "$CUSTOM_NOTES",
-  "apkUrl": "$DOWNLOAD_URL",
-  "apkSizeBytes": ${{ steps.verify_apk.outputs.size_bytes }},
-  "sha256": "${{ steps.verify_apk.outputs.sha256 }}",
-  "signingCertSha256": "${{ steps.verify_apk.outputs.cert_fingerprint }}"
-}
-EOF
-
-          echo "Generated release/update-manifest.json:"
-          cat release/update-manifest.json
+          python3 scripts/generate_manifest.py
           cp release/update-manifest.json /tmp/update-manifest.json
 
       - name: Publish GitHub Release
