@@ -373,8 +373,8 @@ class TraceApplication : Application() {
             startupOrchestrator.state.collect { state ->
                 if (state is com.livetracker.controller.core.startup.StartupState.Ready) {
                     try {
-                        kotlinx.coroutines.delay(2000L) // Settle initial composition
-                        checkForUpdateUseCase(force = false)
+                        kotlinx.coroutines.delay(1000L) // Settle initial composition
+                        checkForUpdateUseCase(force = true)
                     } catch (_: Throwable) {
                         // Offline or background network errors are benign and never disrupt app startup
                     }

@@ -1473,6 +1473,25 @@ Completed full research, architecture, implementation, verification, and release
     - Uploaded `update-manifest.json`.
   - Remote APK URL independently verified: `https://github.com/DreamHAX444/Controller-App/releases/download/v1.0.0/app-release.apk` returns HTTP 302 Found -> HTTP 200 OK.
   - Manifest metadata exactly matches remote APK byte-for-byte and hash-for-hash.
+- **App Open Automatic Update Discovery & Informing System (COMPLETED)**:
+  - **App Open Lifecycle Trigger**:
+    - Cold start: Upon `StartupOrchestrator` reaching `Ready`, `TraceApplication` triggers `checkForUpdateUseCase(force = true)` with a 1-second settling delay.
+    - Warm start / resume: In `MainActivity`, lifecycle hook `onStart()` detects app foregrounding (`isBackgrounded`) and triggers `checkForUpdateUseCase(force = true)` whenever the user opens or returns to the app.
+  - **Automatic User Informing**:
+    - Update Available: Pops up `UpdatePromptDialog` showing version, build code, byte size, and release notes.
+    - Up to Date: `MainShellScreen`'s `LaunchedEffect(updateState)` triggers and displays a non-intrusive Material 3 Snackbar: `"Trace is up to date (v$currentVersionName)"`.
+  - **Navigation to Updates**:
+    - When user taps "Update Now", the dialog closes, starts download via `downloadUpdateUseCase()`, and immediately navigates to `Destination.Updates` via `navController.navigate(Destination.Updates.route)`.
+  - **Persistent Session Informing & Re-prompting**:
+    - When user taps "Later" (dismisses prompt):
+      - Modal dialog closes for current foreground session (`sessionPromptDismissed = true`).
+      - State remains `UpdateAvailable` rather than being discarded or permanently suppressed.
+      - A persistent top notice banner docks at the top of `MainShellScreen` ("App is not up to date • v... available • [Update]"). Clicking "[Update]" navigates directly to `Destination.Updates`.
+      - On next app open (`onStop` with `!isChangingConfigurations` -> `onStart`), `isBackgrounded` resets `sessionPromptDismissedState = false`, re-prompting the user with `UpdatePromptDialog`.
+  - **Verification & Test Coverage**:
+    - Implemented unit test suite `AppOpenUpdateFlowTest.kt` verifying auto-check on open, up-to-date informing, available update informing, "Update Now" navigation + download trigger, and "Later" persistent state + re-prompt on app reopen.
+    - All unit tests across `:core` and `:app` modules pass 100%.
+    - Full debug and release builds (`:app:assembleDebug`, `:app:assembleRelease`) succeed cleanly with R8 optimization.
 
 
 

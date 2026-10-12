@@ -9,18 +9,24 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.livetracker.controller.core.update.model.UpdateState
 import com.livetracker.controller.navigation.*
 import androidx.lifecycle.ViewModelProvider
 import androidx.activity.compose.BackHandler
@@ -30,17 +36,26 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainShellScreen(
     onLogout: () -> Unit,
-    viewModelFactory: ViewModelProvider.Factory? = null
+    viewModelFactory: ViewModelProvider.Factory? = null,
+    navController: NavHostController = rememberNavController(),
+    updateState: UpdateState = UpdateState.Idle,
+    sessionPromptDismissed: Boolean = false,
+    onNavigateToUpdates: () -> Unit = {
+        navController.navigate(Destination.Updates.route) {
+            launchSingleTop = true
+        }
+    }
 ) {
-    val navController = rememberNavController()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
     // When on Map, fullscreen map takes priority: hide top & bottom bars and disable drawer gestures
     val isMap = currentDestination?.route == Destination.Map.route
+    val isUpdatesScreen = currentDestination?.route == Destination.Updates.route
 
     val allDestinations = remember {
         primaryDestinations + serviceDestinations + adminDestinations + systemDestinations
@@ -66,6 +81,22 @@ fun MainShellScreen(
         drawerState.isOpen || drawerState.targetValue == DrawerValue.Open
     } else {
         true
+    }
+
+    // Automatically inform the user when the app is confirmed to be up to date
+    var lastInformedCheckedEpochMs by rememberSaveable { mutableStateOf(0L) }
+    LaunchedEffect(updateState) {
+        if (updateState is UpdateState.UpToDate) {
+            val upToDate = updateState
+            if (upToDate.lastCheckedEpochMs > 0 && upToDate.lastCheckedEpochMs != lastInformedCheckedEpochMs) {
+                lastInformedCheckedEpochMs = upToDate.lastCheckedEpochMs
+                snackbarHostState.showSnackbar(
+                    message = "Trace is up to date (v${upToDate.currentVersionName})",
+                    duration = SnackbarDuration.Short,
+                    withDismissAction = true
+                )
+            }
+        }
     }
 
     ModalNavigationDrawer(
@@ -95,6 +126,7 @@ fun MainShellScreen(
         }
     ) {
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 AnimatedVisibility(
                     visible = !isMap,
@@ -161,13 +193,94 @@ fun MainShellScreen(
                 }
             }
         ) { innerPadding ->
-            TrackMateNavHost(
-                navController = navController,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding,
-                viewModelFactory = viewModelFactory,
-                onOpenDrawer = { scope.launch { drawerState.open() } }
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                TrackMateNavHost(
+                    navController = navController,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = innerPadding,
+                    viewModelFactory = viewModelFactory,
+                    onOpenDrawer = { scope.launch { drawerState.open() } }
+                )
+
+                // Persistent in-app notice when an update is available but user dismissed modal prompt during current session
+                val showBanner = updateState is UpdateState.UpdateAvailable && sessionPromptDismissed && !isUpdatesScreen
+                AnimatedVisibility(
+                    visible = showBanner,
+                    enter = slideInVertically(
+                        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                        initialOffsetY = { -it }
+                    ) + fadeIn(animationSpec = tween(200)),
+                    exit = slideOutVertically(
+                        animationSpec = tween(durationMillis = 200, easing = FastOutLinearInEasing),
+                        targetOffsetY = { -it }
+                    ) + fadeOut(animationSpec = tween(150)),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(
+                            top = if (!isMap) innerPadding.calculateTopPadding() + 8.dp else 40.dp,
+                            start = 12.dp,
+                            end = 12.dp
+                        )
+                ) {
+                    val updateInfo = (updateState as? UpdateState.UpdateAvailable)?.updateInfo
+                    if (updateInfo != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            tonalElevation = 4.dp,
+                            shadowElevation = 6.dp,
+                            onClick = onNavigateToUpdates,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = "Update available",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "App is not up to date",
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Text(
+                                            text = "v${updateInfo.latestVersionName} (Build ${updateInfo.latestVersionCode}) is available",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = onNavigateToUpdates,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Update", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

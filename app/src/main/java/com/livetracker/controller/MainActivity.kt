@@ -28,7 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.livetracker.controller.auth.AuthenticationViewModel
 import com.livetracker.controller.auth.LoginScreen
@@ -38,11 +42,42 @@ import com.livetracker.controller.auth.pin.PinViewModel
 import com.livetracker.controller.core.auth.presentation.AuthenticationState
 import com.livetracker.controller.core.startup.StartupState
 import com.livetracker.controller.main.MainShellScreen
+import com.livetracker.controller.navigation.Destination
 import com.livetracker.controller.ui.screens.startup.StartupFailureScreen
 import com.livetracker.controller.ui.screens.startup.StartupFatalScreen
 import com.livetracker.controller.ui.screens.startup.TraceLoadingScreen
 
 class MainActivity : ComponentActivity() {
+
+    private var isBackgrounded = false
+    private val sessionPromptDismissedState = mutableStateOf(false)
+
+    override fun onStart() {
+        super.onStart()
+        val app = application as TraceApplication
+        if (isBackgrounded) {
+            sessionPromptDismissedState.value = false
+            isBackgrounded = false
+        }
+        // Whenever the user tries to open the app, automatically check for updates
+        lifecycleScope.launch {
+            try {
+                if (app.startupOrchestrator.state.value !is StartupState.Ready) {
+                    app.startupOrchestrator.state.first { it is StartupState.Ready }
+                }
+                app.checkForUpdateUseCase(force = true)
+            } catch (_: Throwable) {
+                // Background update check errors are handled gracefully
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) {
+            isBackgrounded = true
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -220,30 +255,49 @@ class MainActivity : ComponentActivity() {
                                         label = "PinToMainTransition"
                                     ) { passed ->
                                         if (passed) {
+                                            val mainNavController = rememberNavController()
                                             val updateState by app.updateRepository.updateState.collectAsStateWithLifecycle()
                                             val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+                                            val navBackStackEntry by mainNavController.currentBackStackEntryAsState()
+                                            val currentRoute = navBackStackEntry?.destination?.route
+                                            val isUpdatesScreen = currentRoute == Destination.Updates.route
 
                                             MainShellScreen(
                                                 onLogout = {
                                                     pinPassed = false
                                                     authViewModel.logout()
                                                 },
-                                                viewModelFactory = factory
+                                                viewModelFactory = factory,
+                                                navController = mainNavController,
+                                                updateState = updateState,
+                                                sessionPromptDismissed = sessionPromptDismissedState.value,
+                                                onNavigateToUpdates = {
+                                                    mainNavController.navigate(Destination.Updates.route) {
+                                                        launchSingleTop = true
+                                                    }
+                                                }
                                             )
 
-                                            if (updateState is com.livetracker.controller.core.update.model.UpdateState.UpdateAvailable) {
+                                            val showUpdatePrompt = updateState is com.livetracker.controller.core.update.model.UpdateState.UpdateAvailable &&
+                                                !sessionPromptDismissedState.value &&
+                                                !isUpdatesScreen
+
+                                            if (showUpdatePrompt) {
                                                 val updateInfo = (updateState as com.livetracker.controller.core.update.model.UpdateState.UpdateAvailable).updateInfo
                                                 com.livetracker.controller.ui.screens.updates.UpdatePromptDialog(
                                                     updateInfo = updateInfo,
                                                     onUpdateNow = {
+                                                        sessionPromptDismissedState.value = true
                                                         coroutineScope.launch {
                                                             app.downloadUpdateUseCase()
                                                         }
+                                                        mainNavController.navigate(Destination.Updates.route) {
+                                                            launchSingleTop = true
+                                                        }
                                                     },
                                                     onLater = {
-                                                        coroutineScope.launch {
-                                                            app.dismissUpdateUseCase(updateInfo.latestVersionCode)
-                                                        }
+                                                        sessionPromptDismissedState.value = true
                                                     }
                                                 )
                                             }
