@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-interface TimeSource {
+fun interface TimeSource {
     fun currentTimeMillis(): Long
 }
 

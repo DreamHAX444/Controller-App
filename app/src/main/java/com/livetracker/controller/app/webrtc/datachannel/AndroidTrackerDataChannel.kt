@@ -24,6 +24,9 @@ class AndroidTrackerDataChannel(
     private val _incomingMessages = MutableSharedFlow<String>(extraBufferCapacity = 64)
     override val incomingMessages: Flow<String> = _incomingMessages.asSharedFlow()
     
+    private val _incomingBinaryMessages = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
+    override val incomingBinaryMessages: Flow<ByteArray> = _incomingBinaryMessages.asSharedFlow()
+    
     init {
         dataChannel.registerObserver(this)
         _state.value = mapState(dataChannel.state())
@@ -35,7 +38,13 @@ class AndroidTrackerDataChannel(
     
     override suspend fun send(data: String): Boolean {
         if (state.value != DataChannelState.OPEN) return false
-        val buffer = DataChannel.Buffer(ByteBuffer.wrap(data.toByteArray()), false)
+        val buffer = DataChannel.Buffer(ByteBuffer.wrap(data.toByteArray(Charsets.UTF_8)), false)
+        return dataChannel.send(buffer)
+    }
+
+    override suspend fun sendBinary(data: ByteArray): Boolean {
+        if (state.value != DataChannelState.OPEN) return false
+        val buffer = DataChannel.Buffer(ByteBuffer.wrap(data), true)
         return dataChannel.send(buffer)
     }
     
@@ -54,10 +63,12 @@ class AndroidTrackerDataChannel(
     }
 
     override fun onMessage(buffer: DataChannel.Buffer) {
-        if (!buffer.binary) {
-            val bytes = ByteArray(buffer.data.remaining())
-            buffer.data.get(bytes)
-            val message = String(bytes)
+        val bytes = ByteArray(buffer.data.remaining())
+        buffer.data.get(bytes)
+        if (buffer.binary) {
+            _incomingBinaryMessages.tryEmit(bytes)
+        } else {
+            val message = String(bytes, Charsets.UTF_8)
             _incomingMessages.tryEmit(message)
         }
     }

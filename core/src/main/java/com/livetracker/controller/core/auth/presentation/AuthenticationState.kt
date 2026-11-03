@@ -8,6 +8,7 @@ sealed class AuthenticationState {
     object Authenticating : AuthenticationState()
     data class Authenticated(val session: Session) : AuthenticationState()
     object SessionExpired : AuthenticationState()
+    object AccountPending : AuthenticationState()
     object AccountDisabled : AuthenticationState()
     object AccountSuspended : AuthenticationState()
     object AuthenticationUnavailable : AuthenticationState()

@@ -13,7 +13,6 @@ class AuthenticationIntegrationTest {
     private lateinit var sessionRepository: FakeSessionRepository
     private lateinit var authRepository: AuthenticationRepository
     private lateinit var authEngine: AuthorizationEngine
-    private lateinit var commandExecutor: CommandExecutor
 
     private val device1 = "dev-1"
     private val currentTime = 1000L
@@ -24,7 +23,6 @@ class AuthenticationIntegrationTest {
         sessionRepository = FakeSessionRepository()
         authRepository = FakeAuthenticationRepository(userRepository, sessionRepository) { currentTime }
         authEngine = DefaultAuthorizationEngine()
-        commandExecutor = CommandExecutor(authEngine)
     }
 
     private fun seedUser(id: String, status: AccountStatus): User {
@@ -100,5 +98,51 @@ class AuthenticationIntegrationTest {
         authRepository.logout()
         
         assertTrue(sessionRepository.getActiveSession().isFailure)
+    }
+
+    @Test
+    fun `pending account blocks authentication and leaves session empty`() = runBlocking {
+        seedUser("pending-user", AccountStatus.PENDING)
+
+        val result = authRepository.authenticate("pending-user")
+        assertEquals(AuthenticationResult.AccountPending, result)
+        
+        val sessionResult = sessionRepository.getActiveSession()
+        assertTrue(sessionResult.isFailure)
+    }
+
+    @Test
+    fun `successful authentication across all roles creates active session with appropriate authorization`() = runBlocking {
+        val testRoles = listOf(Role.OWNER, Role.ADMIN, Role.USER, Role.VISITOR)
+        for (role in testRoles) {
+            val userId = "auth-${role.name.lowercase()}"
+            val user = User(
+                id = userId,
+                displayName = "User ${role.name}",
+                role = role,
+                accountStatus = AccountStatus.ACTIVE,
+                devicePermissions = listOf(
+                    DevicePermission(device1, setOf(ServicePermission.LOCATION, ServicePermission.CAMERA))
+                )
+            )
+            userRepository.addUser(user)
+
+            val authResult = authRepository.authenticate(userId)
+            assertTrue(authResult is AuthenticationResult.Success)
+            val session = (authResult as AuthenticationResult.Success).session
+            assertEquals(role, session.user.role)
+            assertEquals(userId, session.user.id)
+
+            val activeSession = sessionRepository.getActiveSession().getOrThrow()
+            assertEquals(session, activeSession)
+
+            val locationAuth = authEngine.authorize(session, device1, ServicePermission.LOCATION, Action.READ, currentTime)
+            if (role == Role.VISITOR) {
+                // VISITOR is strictly isolated from hardware
+                assertEquals(AuthorizationResult.DeviceAccessDenied, locationAuth)
+            } else {
+                assertEquals(AuthorizationResult.Allowed, locationAuth)
+            }
+        }
     }
 }

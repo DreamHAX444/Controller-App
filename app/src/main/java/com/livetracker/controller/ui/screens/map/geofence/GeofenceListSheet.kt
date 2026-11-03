@@ -2,10 +2,12 @@ package com.livetracker.controller.ui.screens.map.geofence
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.livetracker.controller.core.tracker.geofence.domain.GeoFence
+import com.livetracker.controller.core.tracker.geofence.domain.GeoFenceType
 import com.livetracker.controller.ui.theme.StatusLive
 
 /**
@@ -62,12 +65,14 @@ import com.livetracker.controller.ui.theme.StatusLive
 fun GeofenceListSheet(
     geoFences: List<GeoFence>,
     onDismiss: () -> Unit,
-    onCreateNew: () -> Unit,
+    onCreateNew: (GeoFenceType) -> Unit = {},
     onEdit: (GeoFence) -> Unit,
     onDelete: (String) -> Unit,
     onToggleEnabled: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showShapeSelectionDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -128,8 +133,16 @@ fun GeofenceListSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         val activeCount = geoFences.count { it.isEnabled }
+                        val circlesCount = geoFences.count { it.isCircle }
+                        val polygonsCount = geoFences.count { it.isPolygon }
+                        val breakdownText = buildString {
+                            append("$activeCount active of ${geoFences.size}")
+                            if (circlesCount > 0 && polygonsCount > 0) {
+                                append(" ($circlesCount ◯, $polygonsCount ⬡)")
+                            }
+                        }
                         Text(
-                            text = "$activeCount active of ${geoFences.size} perimeters",
+                            text = breakdownText,
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -148,10 +161,9 @@ fun GeofenceListSheet(
                     ) {
                         TextButton(
                             onClick = {
-                                onDismiss()
-                                onCreateNew()
+                                showShapeSelectionDialog = true
                             },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -170,13 +182,13 @@ fun GeofenceListSheet(
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close geofence manager",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -225,15 +237,14 @@ fun GeofenceListSheet(
                         Spacer(modifier = Modifier.height(14.dp))
                         Button(
                             onClick = {
-                                onDismiss()
-                                onCreateNew()
+                                showShapeSelectionDialog = true
                             },
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                             ),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -268,6 +279,139 @@ fun GeofenceListSheet(
             }
         }
     }
+
+    if (showShapeSelectionDialog) {
+        AlertDialog(
+            onDismissRequest = { showShapeSelectionDialog = false },
+            title = {
+                Text(
+                    text = "New Geofence Perimeter",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Choose boundary shape type to draw on the map:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Option 1: Circular Perimeter
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                showShapeSelectionDialog = false
+                                onDismiss()
+                                onCreateNew(GeoFenceType.CIRCLE)
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "◯",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Circular Perimeter",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Center point with adjustable radius slider (camps, bases, stations)",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Option 2: Polygon Perimeter
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                showShapeSelectionDialog = false
+                                onDismiss()
+                                onCreateNew(GeoFenceType.POLYGON)
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "⬡",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Polygon Perimeter",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Multi-point boundary drawn on map (custom lots, corridors)",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showShapeSelectionDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -291,19 +435,18 @@ private fun GeofenceRowItem(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // High-contrast perimeter badge with accent color
+            // High-contrast perimeter badge with accent color and distinct shape affordance
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = if (fence.isCircle) CircleShape else RoundedCornerShape(10.dp),
                 color = Color(fence.colorArgb).copy(alpha = 0.16f),
                 border = BorderStroke(1.dp, Color(fence.colorArgb).copy(alpha = 0.45f)),
                 modifier = Modifier.size(38.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = null,
-                        tint = Color(fence.colorArgb),
-                        modifier = Modifier.size(18.dp)
+                    Text(
+                        text = if (fence.isCircle) "◯" else "⬡",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color(fence.colorArgb)
                     )
                 }
             }
@@ -327,8 +470,14 @@ private fun GeofenceRowItem(
                         shape = RoundedCornerShape(4.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
                     ) {
+                        val badgeText = if (fence.isCircle) {
+                            val r = fence.radiusMeters?.toInt() ?: 0
+                            if (r >= 1000) "CIRCLE • ${String.format("%.1f", r / 1000.0)}km" else "CIRCLE • ${r}m"
+                        } else {
+                            "POLYGON • ${fence.vertices.size} pts"
+                        }
                         Text(
-                            text = "${fence.vertices.size} pts",
+                            text = badgeText,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 10.sp
@@ -387,26 +536,26 @@ private fun GeofenceRowItem(
             // Edit Action Button
             IconButton(
                 onClick = onEdit,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit geofence",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(19.dp)
                 )
             }
 
             // Delete Action Button
             IconButton(
                 onClick = { showDeleteConfirmDialog = true },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete geofence",
                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(19.dp)
                 )
             }
         }

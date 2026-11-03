@@ -25,6 +25,7 @@ import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import org.webrtc.VideoTrack
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -48,7 +49,11 @@ class AndroidWebRtcSession(
     private val _incomingDataChannels = MutableSharedFlow<TrackerDataChannel>(extraBufferCapacity = 10)
     override val incomingDataChannels: Flow<TrackerDataChannel> = _incomingDataChannels.asSharedFlow()
     
+    private val _remoteVideoTrack = MutableStateFlow<VideoTrack?>(null)
+    val remoteVideoTrack: StateFlow<VideoTrack?> = _remoteVideoTrack.asStateFlow()
+    
     private val activeDataChannels = mutableListOf<AndroidTrackerDataChannel>()
+    private val pendingRemoteCandidates = mutableListOf<IceCandidate>()
 
     private var peerConnection: PeerConnection? = null
     private val sessionMutex = Mutex()
@@ -100,7 +105,11 @@ class AndroidWebRtcSession(
         override fun onRenegotiationNeeded() {}
 
         override fun onAddTrack(receiver: RtpReceiver?, mediaStreams: Array<out MediaStream>?) {
-            Log.d(tag, "Track received: ${receiver?.track()?.kind()}")
+            val track = receiver?.track()
+            Log.d(tag, "Track received: ${track?.kind()}")
+            if (track is VideoTrack) {
+                _remoteVideoTrack.value = track
+            }
         }
     }
 
@@ -108,18 +117,39 @@ class AndroidWebRtcSession(
         createPeerConnection()
     }
 
+    companion object {
+        fun buildRtcConfiguration(
+            configuration: WebRtcConfiguration
+        ): PeerConnection.RTCConfiguration {
+            val iceServers = configuration.iceServers.map {
+                PeerConnection.IceServer.builder(it.url)
+                    .setUsername(it.username ?: "")
+                    .setPassword(it.password ?: "")
+                    .createIceServer()
+            }
+            return PeerConnection.RTCConfiguration(iceServers).apply {
+                sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+                bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
+                rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
+                continualGatheringPolicy = if (configuration.continualGathering) {
+                    PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+                } else {
+                    PeerConnection.ContinualGatheringPolicy.GATHER_ONCE
+                }
+                candidateNetworkPolicy = PeerConnection.CandidateNetworkPolicy.ALL
+                tcpCandidatePolicy = if (configuration.tcpCandidatesEnabled) {
+                    PeerConnection.TcpCandidatePolicy.ENABLED
+                } else {
+                    PeerConnection.TcpCandidatePolicy.DISABLED
+                }
+                iceTransportsType = PeerConnection.IceTransportsType.ALL
+                iceCandidatePoolSize = configuration.iceCandidatePoolSize
+            }
+        }
+    }
+
     private fun createPeerConnection() {
-        val iceServers = configuration.iceServers.map {
-            PeerConnection.IceServer.builder(it.url)
-                .setUsername(it.username ?: "")
-                .setPassword(it.password ?: "")
-                .createIceServer()
-        }
-
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
-            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-        }
-
+        val rtcConfig = buildRtcConfiguration(configuration)
         peerConnection = factory.createPeerConnection(rtcConfig, observer)
         _state.value = WebRtcState.CONNECTING
     }
@@ -132,6 +162,10 @@ class AndroidWebRtcSession(
         // 1. Set Remote Description
         val remoteSdp = SessionDescription(SessionDescription.Type.OFFER, offer.sdp)
         pc.setRemoteDescriptionSuspend(remoteSdp)
+
+        // Drain any ICE candidates that arrived before remote description was ready
+        pendingRemoteCandidates.forEach { pc.addIceCandidate(it) }
+        pendingRemoteCandidates.clear()
 
         // 2. Create Answer
         val constraints = MediaConstraints().apply {
@@ -153,18 +187,25 @@ class AndroidWebRtcSession(
         val pc = peerConnection ?: return@withLock
         
         // Ignore stale ICE candidates
-        if (candidate.generation != currentGeneration) {
+        if (currentGeneration != -1L && candidate.generation != 0L && candidate.generation != currentGeneration) {
             Log.d(tag, "Ignoring stale ICE candidate. Expected $currentGeneration, got ${candidate.generation}")
             return@withLock
         }
 
         val iceCandidate = IceCandidate(candidate.sdpMid, candidate.sdpMLineIndex, candidate.candidate)
-        pc.addIceCandidate(iceCandidate)
+        if (pc.remoteDescription == null) {
+            pendingRemoteCandidates.add(iceCandidate)
+            Log.d(tag, "Buffered early remote ICE candidate before remote description set")
+        } else {
+            pc.addIceCandidate(iceCandidate)
+        }
     }
 
     override suspend fun stop() = sessionMutex.withLock {
         peerConnection?.close()
         peerConnection = null
+        pendingRemoteCandidates.clear()
+        _remoteVideoTrack.value = null
         activeDataChannels.forEach {
             try { it.close() } catch (e: Exception) {}
         }
@@ -182,6 +223,10 @@ class AndroidWebRtcSession(
         } else {
             null
         }
+    }
+
+    override fun getDataChannel(label: String): TrackerDataChannel? {
+        return activeDataChannels.find { it.label == label }
     }
 }
 

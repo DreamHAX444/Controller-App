@@ -4,6 +4,7 @@
 -dontwarn kotlinx.serialization.**
 -dontwarn org.osmdroid.**
 -dontwarn okhttp3.**
+-dontwarn org.slf4j.**
 
 -keepattributes *Annotation*
 -keepclassmembers class * {

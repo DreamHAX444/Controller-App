@@ -378,7 +378,7 @@ fun DeviceSelectionSheet(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = summary.device.displayName,
+                                        text = com.livetracker.controller.ui.util.DeviceNameFormatter.formatFriendlyName(summary.device.displayName, summary.device.deviceId.value),
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                             fontSize = 12.5.sp

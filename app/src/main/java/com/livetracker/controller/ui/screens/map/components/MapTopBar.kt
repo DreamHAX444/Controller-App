@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.livetracker.controller.core.tracker.device.domain.DeviceSelection
 import com.livetracker.controller.core.tracker.device.domain.TrackerDeviceSummary
 import com.livetracker.controller.core.tracker.domain.ConnectionState
+import com.livetracker.controller.core.tracker.domain.isConnectingOrRecovering
 import com.livetracker.controller.ui.theme.StatusConnecting
 import com.livetracker.controller.ui.theme.StatusLive
 import com.livetracker.controller.ui.theme.StatusOffline
@@ -84,7 +85,7 @@ fun MapTopBar(
             is DeviceSelection.Multiple -> deviceSelection.deviceIds.contains(summary.device.deviceId)
             DeviceSelection.Empty -> false
         }
-        isSelected && summary.device.connectionState == ConnectionState.CONNECTING
+        isSelected && (summary.device.connectionState == ConnectionState.CONNECTING || summary.device.connectionState.isConnectingOrRecovering())
     }
 
     val statusDotColor = when {
@@ -147,7 +148,7 @@ fun MapTopBar(
                     DeviceSelection.All -> "All Trackers (${deviceSummaries.size})"
                     is DeviceSelection.Single -> {
                         val dev = deviceSummaries.find { it.device.deviceId == deviceSelection.deviceId }
-                        dev?.device?.displayName ?: "1 Tracker"
+                        dev?.let { com.livetracker.controller.ui.util.DeviceNameFormatter.formatFriendlyName(it.device.displayName, it.device.deviceId.value) } ?: "1 Tracker"
                     }
                     is DeviceSelection.Multiple -> "${deviceSelection.deviceIds.size} Selected"
                     DeviceSelection.Empty -> "No Trackers"

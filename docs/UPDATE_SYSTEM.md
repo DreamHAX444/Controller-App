@@ -172,17 +172,25 @@ Android 8.0 (API 26) through Android 15 (API 35) enforce explicit permissions fo
 7. Automatically generates and commits `release/update-manifest.json`.
 8. Creates a tagged GitHub Release with the APK artifact attached.
 
-### Local PowerShell Release Script (`scripts/publish_release.ps1`)
+### Unified Trace Master CLI (`trace.ps1` / `trace.bat`)
+The primary toolchain for releasing and publishing updates is the unified `trace` CLI:
 ```powershell
-.\scripts\publish_release.ps1 -Channel "stable" -ReleaseNotes "Trace Controller v1.0.0 stable release." -CreateGitTag
+# Prepare release artifact, verify signature, and generate update-manifest.json
+.\trace.bat release -Channel "stable" -ReleaseNotes "Trace Controller v1.0.0 stable release." -CreateGitTag
+
+# Upload release APK and update-manifest.json directly to GitHub Releases
+.\trace.bat publish
 ```
-This script:
+This command:
 1. Parses `versionCode` and `versionName` directly from `app/build.gradle.kts`.
-2. Runs unit tests across all modules and builds `:app:assembleRelease`.
-3. Computes SHA-256 checksum and exact byte size.
-4. Extracts signing certificate SHA-256 fingerprint using `apksigner`.
-5. Updates `release/update-manifest.json`.
-6. Generates a release report.
+2. Runs unit tests across all modules (`:core` and `:app`) and compiles `:app:assembleRelease`.
+3. Computes the SHA-256 checksum and exact byte size.
+4. Extracts the signing certificate SHA-256 fingerprint using `apksigner`.
+5. Generates `release/update-manifest.json` adhering to `UpdateManifest.kt` schema specifications.
+6. Generates a release report and supports direct GitHub release asset publication.
+
+> [!NOTE]
+> **Backward Compatibility**: Legacy script invocations via `.\scripts\publish_release.ps1` continue to be 100% supported via transparent forwarders delegating to the unified `trace` master CLI.
 
 ---
 

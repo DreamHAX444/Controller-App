@@ -156,6 +156,8 @@ class StartupOrchestrator(
             }
             StepStatus.SUCCEEDED
         } catch (e: Exception) {
+            System.err.println("StartupOrchestrator: Step '${step.label}' failed: ${e.message}")
+            e.printStackTrace()
             StepStatus.FAILED
         }
     }

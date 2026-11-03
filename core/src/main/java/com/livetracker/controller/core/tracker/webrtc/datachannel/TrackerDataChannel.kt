@@ -8,8 +8,11 @@ interface TrackerDataChannel {
     val state: StateFlow<DataChannelState>
     
     val incomingMessages: Flow<String>
+    val incomingBinaryMessages: Flow<ByteArray>
+        get() = kotlinx.coroutines.flow.emptyFlow()
     
     suspend fun open()
     suspend fun send(data: String): Boolean
+    suspend fun sendBinary(data: ByteArray): Boolean = false
     suspend fun close()
 }

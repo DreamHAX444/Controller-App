@@ -1,9 +1,10 @@
 package com.livetracker.controller
 
 import android.app.Application
-import com.livetracker.controller.core.auth.data.StubAuthenticationRepository
-import com.livetracker.controller.core.auth.data.StubCredentialStore
-import com.livetracker.controller.core.auth.data.StubSessionRepository
+import com.livetracker.controller.core.auth.data.DefaultSessionRepository
+import com.livetracker.controller.core.auth.data.SecureCredentialStore
+import com.livetracker.controller.core.auth.domain.repository.CredentialStore
+import com.livetracker.controller.core.auth.domain.repository.SessionRepository
 import com.livetracker.controller.core.auth.domain.usecase.AuthenticateUserUseCase
 import com.livetracker.controller.core.auth.domain.usecase.LogoutUserUseCase
 import com.livetracker.controller.core.auth.domain.usecase.RestoreSessionUseCase
@@ -16,7 +17,6 @@ import com.livetracker.controller.core.tracker.alert.data.InMemoryAlertRepositor
 import com.livetracker.controller.core.tracker.device.data.DefaultDeviceSelectionManager
 import com.livetracker.controller.core.tracker.device.data.InMemoryTrackerDeviceRepository
 import com.livetracker.controller.core.tracker.device.domain.ObserveDeviceSummariesUseCase
-import com.livetracker.controller.core.tracker.geofence.data.InMemoryGeoFenceRepository
 import com.livetracker.controller.core.tracker.location.data.InMemoryTrackerLocationRepository
 import com.livetracker.controller.core.tracker.map.domain.ObserveMapStateUseCase
 import com.livetracker.controller.ui.screens.map.MapPreferencesRepository
@@ -47,12 +47,14 @@ class TraceApplication : Application() {
     lateinit var pinManager: PinManager
         private set
 
-    // Auth stubs (Phase 1.3 — will be replaced by real implementations)
-    lateinit var credentialStore: StubCredentialStore
+    // Auth infrastructure (Supabase GoTrue + profiles + offline presets)
+    lateinit var credentialStore: CredentialStore
         private set
-    lateinit var sessionRepository: StubSessionRepository
+    lateinit var sessionRepository: SessionRepository
         private set
-    lateinit var authRepository: StubAuthenticationRepository
+    lateinit var authRepository: com.livetracker.controller.core.auth.domain.repository.AuthenticationRepository
+        private set
+    lateinit var authorizationEngine: com.livetracker.controller.core.auth.domain.AuthorizationEngine
         private set
 
     // Auth use cases
@@ -72,11 +74,49 @@ class TraceApplication : Application() {
         private set
     lateinit var trackerLocationRepository: InMemoryTrackerLocationRepository
         private set
+    lateinit var locationFreshnessMonitor: com.livetracker.controller.core.tracker.location.domain.LocationFreshnessMonitor
+        private set
     lateinit var alertRepository: InMemoryAlertRepository
+        private set
+    lateinit var sirenAlertEngine: com.livetracker.controller.alert.SirenAlertEngine
+        private set
+    lateinit var idleWakeWatchdog: com.livetracker.controller.lifecycle.IdleWakeWatchdog
         private set
     lateinit var geoFenceRepository: com.livetracker.controller.core.tracker.geofence.domain.GeoFenceRepository
         private set
     lateinit var geoFenceStateRepository: com.livetracker.controller.core.tracker.geofence.domain.GeoFenceStateRepository
+        private set
+    lateinit var cameraRepository: com.livetracker.controller.core.tracker.camera.domain.CameraRepository
+        private set
+    lateinit var audioRepository: com.livetracker.controller.core.tracker.audio.domain.AudioRepository
+        private set
+    lateinit var screenCaptureRepository: com.livetracker.controller.core.tracker.screen.domain.ScreenCaptureRepository
+        private set
+    lateinit var fileTransferRepository: com.livetracker.controller.core.tracker.files.domain.FileTransferRepository
+        private set
+    lateinit var webRtcSessionFactory: com.livetracker.controller.core.tracker.webrtc.WebRtcSessionFactory
+        private set
+    lateinit var webRtcSessionManager: com.livetracker.controller.core.tracker.webrtc.WebRtcSessionManager
+        private set
+
+    // === Fleet, Sessions & Transports (Phase 1) ===
+    lateinit var supabaseFleetManager: com.livetracker.controller.core.tracker.supabase.SupabaseFleetManager
+        private set
+    lateinit var trackerSessionManager: com.livetracker.controller.core.tracker.domain.TrackerSessionManager
+        private set
+    lateinit var deviceManager: com.livetracker.controller.core.tracker.device.domain.DeviceManager
+        private set
+    lateinit var signalingTransport: com.livetracker.controller.core.tracker.signaling.SignalingTransport
+        private set
+    lateinit var signalingManager: com.livetracker.controller.core.tracker.signaling.SignalingManager
+        private set
+    lateinit var fleetLifecycleManager: com.livetracker.controller.core.tracker.supabase.FleetLifecycleManager
+        private set
+    lateinit var networkStateProvider: com.livetracker.controller.network.AndroidNetworkStateProvider
+        private set
+    lateinit var commandGateway: com.livetracker.controller.core.tracker.command.CommandGateway
+        private set
+    lateinit var commandStateStore: com.livetracker.controller.core.tracker.command.persistence.CommandStateStore
         private set
 
     // === Map (Category A/B) ===
@@ -121,22 +161,26 @@ class TraceApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        val earlyStorage = EncryptedPreferencesStorage(applicationContext)
+        secureStorage = earlyStorage
+        com.livetracker.controller.core.tracker.supabase.SupabaseClientProvider.init(earlyStorage)
 
         val steps = listOf(
             StartupStep(
                 label = "Preparing security",
                 action = {
-                    secureStorage = EncryptedPreferencesStorage(applicationContext)
-                    pinManager = PinManager(secureStorage)
+                    val timeProvider = com.livetracker.controller.security.AndroidTimeProvider(applicationContext)
+                    pinManager = PinManager(secureStorage, timeProvider)
                 }
             ),
             StartupStep(
                 label = "Loading authentication",
                 dependsOn = listOf("Preparing security"),
                 action = {
-                    credentialStore = StubCredentialStore()
-                    sessionRepository = StubSessionRepository()
-                    authRepository = StubAuthenticationRepository(sessionRepository, credentialStore)
+                    credentialStore = SecureCredentialStore(secureStorage)
+                    sessionRepository = DefaultSessionRepository()
+                    authRepository = com.livetracker.controller.core.auth.data.SupabaseAuthenticationRepository(sessionRepository, credentialStore)
+                    authorizationEngine = com.livetracker.controller.core.auth.domain.DefaultAuthorizationEngine()
                     restoreSessionUseCase = RestoreSessionUseCase(credentialStore, authRepository)
                     authenticateUserUseCase = AuthenticateUserUseCase(authRepository)
                     validateSessionUseCase = ValidateSessionUseCase(sessionRepository)
@@ -151,6 +195,7 @@ class TraceApplication : Application() {
             ),
             StartupStep(
                 label = "Preparing device state",
+                dependsOn = listOf("Loading authentication"),
                 action = {
                     deviceSelectionManager = DefaultDeviceSelectionManager()
                     trackerDeviceRepository = InMemoryTrackerDeviceRepository()
@@ -167,36 +212,136 @@ class TraceApplication : Application() {
                         repository = trackerLocationRepository,
                         evaluateGeoFencesUseCase = evaluateGeoFencesUseCase
                     )
+                    locationFreshnessMonitor = com.livetracker.controller.core.tracker.location.domain.LocationFreshnessMonitor(
+                        repository = trackerLocationRepository,
+                        scope = applicationScope
+                    )
+                    locationFreshnessMonitor.start()
+                    commandStateStore = com.livetracker.controller.core.tracker.command.persistence.PersistentCommandStateStore(applicationContext)
+                    applicationScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            commandStateStore.clearOldCommands(olderThanMs = 7L * 24 * 60 * 60 * 1000)
+                        } catch (_: Exception) {}
+                    }
+
+                    // Phase 1: Initialize Supabase Fleet Transport & Session Management
+                    commandGateway = com.livetracker.controller.core.tracker.command.EdgeFunctionCommandGateway(
+                        httpClient = io.ktor.client.HttpClient(io.ktor.client.engine.okhttp.OkHttp),
+                        baseUrl = com.livetracker.controller.core.tracker.supabase.SupabaseClientProvider.supabaseUrl,
+                        anonKey = com.livetracker.controller.core.tracker.supabase.SupabaseClientProvider.supabaseKey,
+                        credentialStore = credentialStore,
+                        commandStateStore = commandStateStore,
+                        fallbackBaseUrl = null,
+                        pinnedKeyProvider = com.livetracker.controller.core.tracker.command.crypto.TracePinnedKeyProvider.createForContext(this),
+                        requireSignatureVerification = true,
+                        enableDirectAutonomousFallback = true
+                    )
+                    sirenAlertEngine = com.livetracker.controller.alert.SirenAlertEngine(applicationContext, applicationScope)
+                    supabaseFleetManager = com.livetracker.controller.core.tracker.supabase.SupabaseFleetManager(
+                        clientProvider = { com.livetracker.controller.core.tracker.supabase.SupabaseClientProvider.client },
+                        scope = applicationScope,
+                        commandGateway = commandGateway,
+                        commandStateStore = commandStateStore
+                    )
+                    idleWakeWatchdog = com.livetracker.controller.lifecycle.IdleWakeWatchdog(
+                        trackerDeviceRepository = trackerDeviceRepository,
+                        sendCommand = { cmd -> supabaseFleetManager.sendTrackerCommand(cmd) },
+                        scope = applicationScope
+                    )
+                    idleWakeWatchdog.start()
+                    signalingTransport = com.livetracker.controller.core.tracker.signaling.SupabaseSignalingTransport(
+                        clientProvider = { com.livetracker.controller.core.tracker.supabase.SupabaseClientProvider.client }
+                    )
+                    signalingManager = com.livetracker.controller.core.tracker.signaling.DefaultSignalingManager(
+                        transport = signalingTransport,
+                        scope = applicationScope
+                    )
+                    trackerSessionManager = com.livetracker.controller.core.tracker.session.DefaultTrackerSessionManager(
+                        scope = applicationScope,
+                        processLocationUpdate = processLocationUpdateUseCase,
+                        transportFactory = { trackerId ->
+                            com.livetracker.controller.core.tracker.supabase.SupabaseTrackerTransport(
+                                deviceId = trackerId,
+                                fleetManager = supabaseFleetManager,
+                                scope = applicationScope
+                            )
+                        }
+                    )
+                    deviceManager = com.livetracker.controller.core.tracker.device.data.DefaultDeviceManager(
+                        scope = applicationScope,
+                        repository = trackerDeviceRepository,
+                        sessionManager = trackerSessionManager
+                    )
+                    webRtcSessionFactory = com.livetracker.controller.webrtc.AndroidWebRtcSessionFactory(
+                        context = applicationContext,
+                        scope = applicationScope
+                    )
+                    webRtcSessionManager = com.livetracker.controller.core.tracker.webrtc.DefaultWebRtcSessionManager(
+                        factory = webRtcSessionFactory
+                    )
+                    cameraRepository = com.livetracker.controller.core.tracker.camera.data.DefaultCameraRepository(
+                        sessionManager = trackerSessionManager,
+                        authEngine = authorizationEngine,
+                        deviceRepository = trackerDeviceRepository,
+                        webRtcSessionManager = webRtcSessionManager,
+                        signalingManager = signalingManager,
+                        scope = applicationScope
+                    )
+                    audioRepository = com.livetracker.controller.core.tracker.audio.data.DefaultAudioRepository(
+                        sessionManager = trackerSessionManager,
+                        authEngine = authorizationEngine,
+                        clientProvider = { com.livetracker.controller.core.tracker.supabase.SupabaseClientProvider.client },
+                        audioPlayerFactory = { com.livetracker.controller.audio.AndroidAudioPlayer(sampleRate = 8000) },
+                        scope = applicationScope
+                    )
+                    screenCaptureRepository = com.livetracker.controller.core.tracker.screen.data.DefaultScreenCaptureRepository(
+                        sessionManager = trackerSessionManager,
+                        webRtcSessionManager = webRtcSessionManager,
+                        signalingManager = signalingManager,
+                        authEngine = authorizationEngine,
+                        scope = applicationScope
+                    )
+                    fileTransferRepository = com.livetracker.controller.core.tracker.files.data.DefaultFileTransferRepository(
+                        webRtcSessionManager = webRtcSessionManager,
+                        sessionManager = trackerSessionManager,
+                        authEngine = authorizationEngine,
+                        scope = applicationScope,
+                        context = this
+                    )
+                    supabaseFleetManager.onCommandAckReceived = { (fileTransferRepository as? com.livetracker.controller.core.tracker.files.data.DefaultFileTransferRepository)?.handleCommandAck(it) }
+
+                    fleetLifecycleManager = com.livetracker.controller.core.tracker.supabase.FleetLifecycleManager(
+                        supabaseFleetManager = supabaseFleetManager,
+                        deviceManager = deviceManager,
+                        trackerDeviceRepository = trackerDeviceRepository,
+                        trackerLocationRepository = trackerLocationRepository,
+                        trackerSessionManager = trackerSessionManager,
+                        processLocationUpdateUseCase = processLocationUpdateUseCase,
+                        scope = applicationScope,
+                        cameraRepository = cameraRepository,
+                        sessionRepository = sessionRepository
+                    )
+
+                    // Connect session changes reactively to the fleet lifecycle manager
+                    applicationScope.launch {
+                        sessionRepository.observeActiveSession().collect { session ->
+                            fleetLifecycleManager.onSessionChanged(session)
+                        }
+                    }
+
+                    networkStateProvider = com.livetracker.controller.network.AndroidNetworkStateProvider(applicationContext) {
+                        refreshFleetIfReady()
+                    }
+                    networkStateProvider.start()
+
                     deviceSelectionManager.selectAll()
 
-                    val fence1 = com.livetracker.controller.core.tracker.geofence.domain.GeoFence(
-                        id = "gf_1",
-                        name = "Manhattan Safe Zone",
-                        vertices = listOf(
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7150, -74.0100),
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7150, -74.0020),
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7100, -74.0020),
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7100, -74.0100)
-                        ),
-                        colorArgb = android.graphics.Color.parseColor("#4CAF50"),
-                        isEnabled = true
-                    )
-                    val fence2 = com.livetracker.controller.core.tracker.geofence.domain.GeoFence(
-                        id = "gf_2",
-                        name = "NYU Campus",
-                        vertices = listOf(
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7320, -73.9900),
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7320, -73.9840),
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7280, -73.9840),
-                            com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D(40.7280, -73.9900)
-                        ),
-                        colorArgb = android.graphics.Color.parseColor("#2196F3"),
-                        isEnabled = true
-                    )
-
-                    if (geoFenceRepository.getGeoFences().isEmpty()) {
-                        geoFenceRepository.addGeoFence(fence1)
-                        geoFenceRepository.addGeoFence(fence2)
+                    // Ensure pure on-device persistence: purge any legacy hardcoded demo geofences
+                    val legacyHardcodedIds = setOf("gf_1", "gf_2")
+                    for (fence in geoFenceRepository.getGeoFences()) {
+                        if (fence.id in legacyHardcodedIds) {
+                            geoFenceRepository.removeGeoFence(fence.id)
+                        }
                     }
                 }
             ),
@@ -299,8 +444,7 @@ class TraceApplication : Application() {
                     // Pre-warm vector marker bitmaps and geofence drag handle graphics
                     com.livetracker.controller.ui.screens.map.components.MapMarkerRenderer.warmup(
                         context = applicationContext,
-                        markers = initialMarkers,
-                        presetColors = com.livetracker.controller.ui.screens.map.geofence.GEOFENCE_PRESET_COLORS
+                        markers = initialMarkers
                     )
                 }
             ),
@@ -373,11 +517,27 @@ class TraceApplication : Application() {
             startupOrchestrator.state.collect { state ->
                 if (state is com.livetracker.controller.core.startup.StartupState.Ready) {
                     try {
+                        com.livetracker.controller.service.TraceFleetMonitoringService.start(applicationContext)
+                    } catch (_: Throwable) {}
+                    try {
                         kotlinx.coroutines.delay(1000L) // Settle initial composition
                         checkForUpdateUseCase(force = true)
                     } catch (_: Throwable) {
                         // Offline or background network errors are benign and never disrupt app startup
                     }
+                }
+            }
+        }
+    }
+
+    fun refreshFleetIfReady() {
+        if (this::fleetLifecycleManager.isInitialized && this::supabaseFleetManager.isInitialized) {
+            applicationScope.launch {
+                try {
+                    supabaseFleetManager.reconnectRealtime()
+                    fleetLifecycleManager.refresh()
+                } catch (e: Exception) {
+                    android.util.Log.w("TraceApplication", "refreshFleetIfReady error: ${e.message}")
                 }
             }
         }

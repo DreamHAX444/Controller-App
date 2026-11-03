@@ -15,3 +15,16 @@ enum class ConnectionState {
     FAILED,
     DISCONNECTED
 }
+
+fun ConnectionState.isConnectingOrRecovering(): Boolean = when (this) {
+    ConnectionState.CONNECTING,
+    ConnectionState.SIGNALING,
+    ConnectionState.WEBRTC_CONNECTING,
+    ConnectionState.DATA_CHANNEL_OPENING,
+    ConnectionState.RECONNECTING,
+    ConnectionState.SIGNALING_RECOVERY,
+    ConnectionState.WEBRTC_RECOVERY,
+    ConnectionState.DATA_CHANNEL_RECOVERY -> true
+    else -> false
+}
+

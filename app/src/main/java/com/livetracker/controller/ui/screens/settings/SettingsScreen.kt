@@ -50,11 +50,16 @@ import com.livetracker.controller.ui.screens.map.config.MapProvider
 import com.livetracker.controller.ui.screens.map.config.MapStyle
 import com.livetracker.controller.ui.screens.map.config.getSupportedStyles
 import com.livetracker.controller.ui.screens.map.offline.OfflineDownloadState
+import com.livetracker.controller.core.auth.domain.Role
+import com.livetracker.controller.core.auth.domain.User
+import com.livetracker.controller.ui.components.UserProfileAvatar
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currentUser: User? = null
 ) {
     val mapConfig by viewModel.mapConfiguration.collectAsStateWithLifecycle()
     val cartoApiKey by viewModel.cartoApiKey.collectAsStateWithLifecycle()
@@ -70,14 +75,87 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Section: User Account Profile
         Text(
-            text = "Settings",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
+            text = "User Account",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.primary
         )
+
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                UserProfileAvatar(
+                    avatarUrl = currentUser?.avatarUrl,
+                    displayName = currentUser?.displayName ?: "Operator",
+                    role = currentUser?.role ?: Role.OWNER,
+                    size = 52.dp
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = currentUser?.displayName ?: "Operator",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.5.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = currentUser?.email ?: (if (currentUser != null) "${currentUser.displayName}@trace.local" else "developer@trace.local"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                        ) {
+                            Text(
+                                text = currentUser?.role?.name ?: "OWNER",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFF1B5E20).copy(alpha = 0.25f),
+                            border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                text = "ACTIVE",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF4CAF50),
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         // Section: Map Provider
         Text(

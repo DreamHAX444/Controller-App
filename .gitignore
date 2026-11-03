@@ -1,16 +1,63 @@
-*.iml
-.gradle
-/local.properties
-/.idea/
-.DS_Store
+# Gradle & Build outputs
+.gradle/
 build/
-/captures
-.externalNativeBuild
-.cxx
+**/build/
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Local environment & device configuration
 local.properties
+/local.properties
+*.env
+.env*
+!.env.example
+
+# IDE & Editor files
+.idea/
+/.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.vscode/
+
+# Android Native / C++
+.cxx/
+.externalNativeBuild/
+/captures
+
+# Kotlin compiler cache
 .kotlin/
+
+# Node & Deno
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cryptographic key material (dev/local keystores and secrets)
+.keys/
+*.jwk.json
+*.jwk
+*.key
+*.keystore
+*.jks
+dev_server_signing_key.*
+
+# Temporary, scratch, and log files
 scratch/
 *.log
 test_*.txt
-*.py
-!scripts/generate_manifest.py
+ui.xml
+query
+/*.png
+*.pyc
+__pycache__/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini

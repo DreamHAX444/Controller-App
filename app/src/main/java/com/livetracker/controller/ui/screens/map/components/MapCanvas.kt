@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -147,15 +148,41 @@ private fun OsmMapCanvasView(
     val markerOverlays = remember { mutableMapOf<String, OsmMarker>() }
     val accuracyStateCache = remember { mutableMapOf<String, Triple<Double, Double, Float>>() }
 
+    val currentOnMapTap by rememberUpdatedState(onMapTap)
+    val currentOnMapLongClick by rememberUpdatedState(onMapLongClick)
+    val currentEditingFenceId by rememberUpdatedState(editingFenceId)
+
+    val markerAnimator = remember {
+        SmoothMarkerAnimator {
+            mapViewInstance?.postInvalidateOnAnimation()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            markerAnimator.clear()
+        }
+    }
+
     val mapEventsOverlay = remember {
         MapEventsOverlay(object : MapEventsReceiver {
             override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                onMapTap(p.latitude, p.longitude)
+                val mv = mapViewInstance
+                if (currentEditingFenceId != null && mv != null && editMarkerOverlays.isNotEmpty()) {
+                    val tapScreen = mv.projection.toPixels(p, null)
+                    val hitAnyHandle = editMarkerOverlays.values.any { marker ->
+                        marker.isWithinHitTarget(tapScreen.x.toFloat(), tapScreen.y.toFloat(), mv)
+                    }
+                    if (hitAnyHandle) {
+                        return true // Suppress accidental vertex insertion when tap lands on/near an active drag handle
+                    }
+                }
+                currentOnMapTap(p.latitude, p.longitude)
                 return true
             }
 
             override fun longPressHelper(p: GeoPoint): Boolean {
-                onMapLongClick(p.latitude, p.longitude)
+                currentOnMapLongClick(p.latitude, p.longitude)
                 return true
             }
         })
@@ -228,74 +255,122 @@ private fun OsmMapCanvasView(
             val activePolylines = mutableSetOf<String>()
             val activeEditMarkers = mutableSetOf<Int>()
 
-            // Render Geofences
+            // Render Geofences (both Circle and Polygon)
             geoFences.forEach { fence ->
-                val points = fence.vertices.map { GeoPoint(it.latitude, it.longitude) }
-                if (points.size >= 3) {
+                val center = fence.center
+                val radius = fence.radiusMeters
+                if (fence.isCircle && center != null && radius != null && radius > 0.0) {
                     activePolygons.add(fence.id)
                     val polygon = geoFenceOverlays.getOrPut(fence.id) {
                         OsmPolygon(mapView).apply { infoWindow = null }
                     }
-                    if (fence.id == editingFenceId || polygon.actualPoints.size != points.size) {
-                        polygon.points = points
-                        val baseColor = fence.colorArgb
-                        val r = android.graphics.Color.red(baseColor)
-                        val g = android.graphics.Color.green(baseColor)
-                        val b = android.graphics.Color.blue(baseColor)
-                        val isPreview = fence.id == editingFenceId
-                        polygon.fillPaint.color = if (isPreview) {
-                            android.graphics.Color.argb(70, r, g, b)
-                        } else {
-                            android.graphics.Color.argb(45, r, g, b)
-                        }
-                        polygon.outlinePaint.color = if (isPreview) {
-                            baseColor
-                        } else {
-                            android.graphics.Color.argb(220, r, g, b)
-                        }
-                        polygon.outlinePaint.strokeWidth = if (isPreview) 7f else 4.5f
+                    val circlePoints = computeCirclePoints(center.latitude, center.longitude, radius)
+                    polygon.points = circlePoints
+                    val baseColor = fence.colorArgb
+                    val r = android.graphics.Color.red(baseColor)
+                    val g = android.graphics.Color.green(baseColor)
+                    val b = android.graphics.Color.blue(baseColor)
+                    val isPreview = fence.id == editingFenceId
+                    polygon.fillPaint.color = if (isPreview) {
+                        android.graphics.Color.argb(70, r, g, b)
+                    } else {
+                        android.graphics.Color.argb(45, r, g, b)
                     }
+                    polygon.outlinePaint.color = if (isPreview) {
+                        baseColor
+                    } else {
+                        android.graphics.Color.argb(220, r, g, b)
+                    }
+                    polygon.outlinePaint.strokeWidth = if (isPreview) 7f else 4.5f
                     overlayList.add(polygon)
-                } else if (points.size == 2) {
-                    activePolylines.add(fence.id)
-                    val polyline = polylineOverlays.getOrPut(fence.id) {
-                        OsmPolyline(mapView)
-                    }
-                    if (fence.id == editingFenceId || polyline.actualPoints.size != points.size) {
-                        polyline.setPoints(points)
-                        polyline.outlinePaint.color = fence.colorArgb
-                        polyline.outlinePaint.strokeWidth = 5f
-                    }
-                    overlayList.add(polyline)
-                }
 
-                // If actively editing this fence, render interactive draggable vertex nodes
-                if (fence.id == editingFenceId) {
-                    val density = context.resources.displayMetrics.density
-                    val handleRadius = (8 * density).toInt()
-                    val handleDiameter = handleRadius * 2
-
-                    points.forEachIndexed { index, point ->
-                        activeEditMarkers.add(index)
-                        val dragMarker = editMarkerOverlays.getOrPut(index) {
+                    // If actively editing this circle, render interactive draggable center node
+                    if (fence.id == editingFenceId) {
+                        activeEditMarkers.add(-1)
+                        val dragMarker = editMarkerOverlays.getOrPut(-1) {
                             GeofenceDragMarker(mapView) { newPos ->
-                                onVertexUpdate(index, newPos.latitude, newPos.longitude)
+                                onVertexUpdate(-1, newPos.latitude, newPos.longitude)
                             }.apply {
                                 setAnchor(OsmMarker.ANCHOR_CENTER, OsmMarker.ANCHOR_CENTER)
                             }
                         }
 
-                        // Use cached / pre-warmed circular vertex handle drawable (zero per-frame allocation)
                         val handleDrawable = MapMarkerRenderer.getVertexHandleDrawable(context, fence.colorArgb)
                         if (dragMarker.icon != handleDrawable) {
                             dragMarker.icon = handleDrawable
                             hasChanges = true
                         }
-                        if (dragMarker.position != point) {
-                            dragMarker.position = point
+                        val centerGeoPoint = GeoPoint(center.latitude, center.longitude)
+                        if (dragMarker.position != centerGeoPoint) {
+                            dragMarker.position = centerGeoPoint
                             hasChanges = true
                         }
                         overlayList.add(dragMarker)
+                    }
+                } else {
+                    val points = fence.vertices.map { GeoPoint(it.latitude, it.longitude) }
+                    if (points.size >= 3) {
+                        activePolygons.add(fence.id)
+                        val polygon = geoFenceOverlays.getOrPut(fence.id) {
+                            OsmPolygon(mapView).apply { infoWindow = null }
+                        }
+                        if (fence.id == editingFenceId || polygon.actualPoints.size != points.size) {
+                            polygon.points = points
+                            val baseColor = fence.colorArgb
+                            val r = android.graphics.Color.red(baseColor)
+                            val g = android.graphics.Color.green(baseColor)
+                            val b = android.graphics.Color.blue(baseColor)
+                            val isPreview = fence.id == editingFenceId
+                            polygon.fillPaint.color = if (isPreview) {
+                                android.graphics.Color.argb(70, r, g, b)
+                            } else {
+                                android.graphics.Color.argb(45, r, g, b)
+                            }
+                            polygon.outlinePaint.color = if (isPreview) {
+                                baseColor
+                            } else {
+                                android.graphics.Color.argb(220, r, g, b)
+                            }
+                            polygon.outlinePaint.strokeWidth = if (isPreview) 7f else 4.5f
+                        }
+                        overlayList.add(polygon)
+                    } else if (points.size == 2) {
+                        activePolylines.add(fence.id)
+                        val polyline = polylineOverlays.getOrPut(fence.id) {
+                            OsmPolyline(mapView)
+                        }
+                        if (fence.id == editingFenceId || polyline.actualPoints.size != points.size) {
+                            polyline.setPoints(points)
+                            polyline.outlinePaint.color = fence.colorArgb
+                            polyline.outlinePaint.strokeWidth = 5f
+                        }
+                        overlayList.add(polyline)
+                    }
+
+                    // If actively editing this polygon, render interactive draggable vertex nodes
+                    if (fence.id == editingFenceId) {
+                        points.forEachIndexed { index, point ->
+                            activeEditMarkers.add(index)
+                            val dragMarker = editMarkerOverlays.getOrPut(index) {
+                                GeofenceDragMarker(mapView) { newPos ->
+                                    onVertexUpdate(index, newPos.latitude, newPos.longitude)
+                                }.apply {
+                                    setAnchor(OsmMarker.ANCHOR_CENTER, OsmMarker.ANCHOR_CENTER)
+                                }
+                            }
+
+                            // Use cached / pre-warmed circular vertex handle drawable (zero per-frame allocation)
+                            val handleDrawable = MapMarkerRenderer.getVertexHandleDrawable(context, fence.colorArgb)
+                            if (dragMarker.icon != handleDrawable) {
+                                dragMarker.icon = handleDrawable
+                                hasChanges = true
+                            }
+                            if (dragMarker.position != point) {
+                                dragMarker.position = point
+                                hasChanges = true
+                            }
+                            overlayList.add(dragMarker)
+                        }
                     }
                 }
             }
@@ -309,7 +384,7 @@ private fun OsmMapCanvasView(
 
             markers.forEach { marker ->
                 val acc = marker.accuracy
-                if (acc != null && acc > 0f) {
+                if (acc != null && acc > 0f && !acc.isNaN() && !acc.isInfinite()) {
                     activeAccuracyIds.add(marker.deviceId.value)
                     val accuracyPolygon = accuracyOverlays.getOrPut(marker.deviceId.value) {
                         hasChanges = true
@@ -355,23 +430,20 @@ private fun OsmMapCanvasView(
                     }
                 }
 
-                val newPos = GeoPoint(marker.latitude, marker.longitude)
-                if (osmMarker.position != newPos) {
-                    osmMarker.position = newPos
-                    hasChanges = true
-                }
-
                 val newDrawable = MapMarkerRenderer.getMarkerDrawable(context, marker, isSelected)
                 if (osmMarker.icon != newDrawable) {
                     osmMarker.icon = newDrawable
                     hasChanges = true
                 }
 
-                val targetRotation = marker.bearing?.let { -it } ?: 0f
-                if (osmMarker.rotation != targetRotation) {
-                    osmMarker.rotation = targetRotation
-                    hasChanges = true
-                }
+                // Smooth position & shortest-arc rotation animation
+                markerAnimator.animateOsmMarker(
+                    deviceId = marker.deviceId.value,
+                    marker = osmMarker,
+                    targetLat = marker.latitude,
+                    targetLon = marker.longitude,
+                    targetBearing = marker.bearing
+                )
 
                 overlayList.add(osmMarker)
             }
@@ -465,7 +537,7 @@ private fun GoogleMapCanvasView(
         // Render Accuracy circles
         markers.forEach { marker ->
             val acc = marker.accuracy
-            if (acc != null && acc > 0f) {
+            if (acc != null && acc > 0f && !acc.isNaN() && !acc.isInfinite()) {
                 Circle(
                     center = LatLng(marker.latitude, marker.longitude),
                     radius = acc.toDouble(),
@@ -476,44 +548,39 @@ private fun GoogleMapCanvasView(
             }
         }
 
-        // Render Geofence polygons & lines
+        // Render Geofence polygons, lines & circles
         geoFences.forEach { fence ->
-            val points = fence.vertices.map { LatLng(it.latitude, it.longitude) }
             val fenceColor = Color(fence.colorArgb)
+            val center = fence.center
+            val radius = fence.radiusMeters
 
-            if (points.size >= 3) {
-                Polygon(
-                    points = points,
-                    fillColor = fenceColor.copy(alpha = 0.18f),
-                    strokeColor = fenceColor.copy(alpha = 0.85f),
-                    strokeWidth = 4f
+            if (fence.isCircle && center != null && radius != null && radius > 0.0) {
+                val centerLatLng = LatLng(center.latitude, center.longitude)
+                Circle(
+                    center = centerLatLng,
+                    radius = radius,
+                    fillColor = fenceColor.copy(alpha = if (fence.id == editingFenceId) 0.28f else 0.18f),
+                    strokeColor = fenceColor.copy(alpha = if (fence.id == editingFenceId) 0.95f else 0.85f),
+                    strokeWidth = if (fence.id == editingFenceId) 6f else 4f
                 )
-            } else if (points.size == 2) {
-                Polyline(
-                    points = points,
-                    color = fenceColor.copy(alpha = 0.85f),
-                    width = 4f
-                )
-            }
 
-            // Draggable vertex handles when in active editing mode
-            if (fence.id == editingFenceId) {
-                points.forEachIndexed { index, point ->
-                    val markerState = rememberMarkerState(key = "${fence.id}_$index", position = point)
+                // Draggable center handle when in active editing mode
+                if (fence.id == editingFenceId) {
+                    val markerState = rememberMarkerState(key = "${fence.id}_center", position = centerLatLng)
 
                     LaunchedEffect(markerState.position) {
-                        if (markerState.position.latitude != point.latitude ||
-                            markerState.position.longitude != point.longitude
+                        if (markerState.position.latitude != centerLatLng.latitude ||
+                            markerState.position.longitude != centerLatLng.longitude
                         ) {
-                            onVertexUpdate(index, markerState.position.latitude, markerState.position.longitude)
+                            onVertexUpdate(-1, markerState.position.latitude, markerState.position.longitude)
                         }
                     }
 
-                    LaunchedEffect(point) {
-                        if (markerState.position.latitude != point.latitude ||
-                            markerState.position.longitude != point.longitude
+                    LaunchedEffect(centerLatLng) {
+                        if (markerState.position.latitude != centerLatLng.latitude ||
+                            markerState.position.longitude != centerLatLng.longitude
                         ) {
-                            markerState.position = point
+                            markerState.position = centerLatLng
                         }
                     }
 
@@ -523,32 +590,125 @@ private fun GoogleMapCanvasView(
                         icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
                     )
                 }
+            } else {
+                val points = fence.vertices.map { LatLng(it.latitude, it.longitude) }
+
+                if (points.size >= 3) {
+                    Polygon(
+                        points = points,
+                        fillColor = fenceColor.copy(alpha = if (fence.id == editingFenceId) 0.28f else 0.18f),
+                        strokeColor = fenceColor.copy(alpha = if (fence.id == editingFenceId) 0.95f else 0.85f),
+                        strokeWidth = if (fence.id == editingFenceId) 6f else 4f
+                    )
+                } else if (points.size == 2) {
+                    Polyline(
+                        points = points,
+                        color = fenceColor.copy(alpha = 0.85f),
+                        width = 4f
+                    )
+                }
+
+                // Draggable vertex handles when in active editing mode
+                if (fence.id == editingFenceId) {
+                    points.forEachIndexed { index, point ->
+                        val markerState = rememberMarkerState(key = "${fence.id}_$index", position = point)
+
+                        LaunchedEffect(markerState.position) {
+                            if (markerState.position.latitude != point.latitude ||
+                                markerState.position.longitude != point.longitude
+                            ) {
+                                onVertexUpdate(index, markerState.position.latitude, markerState.position.longitude)
+                            }
+                        }
+
+                        LaunchedEffect(point) {
+                            if (markerState.position.latitude != point.latitude ||
+                                markerState.position.longitude != point.longitude
+                            ) {
+                                markerState.position = point
+                            }
+                        }
+
+                        Marker(
+                            state = markerState,
+                            draggable = true,
+                            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                        )
+                    }
+                }
             }
         }
 
         // Render Markers
         markers.forEach { marker ->
-            val isSelected = marker.deviceId == selectedMarker?.deviceId
-            val iconDescriptor = MapMarkerRenderer.getMarkerBitmapDescriptor(context, marker, isSelected)
-            val markerState = rememberMarkerState(
-                key = marker.deviceId.value,
-                position = LatLng(marker.latitude, marker.longitude)
-            )
-            val targetLatLng = LatLng(marker.latitude, marker.longitude)
-            if (markerState.position != targetLatLng) {
-                markerState.position = targetLatLng
-            }
-
-            Marker(
-                state = markerState,
-                icon = iconDescriptor,
-                anchor = Offset(0.5f, 0.5f),
-                rotation = marker.bearing ?: 0f,
-                onClick = {
-                    onSelectMarker(marker)
-                    true
-                }
+            AnimatedGoogleMapMarker(
+                context = context,
+                marker = marker,
+                isSelected = marker.deviceId == selectedMarker?.deviceId,
+                onSelectMarker = onSelectMarker
             )
         }
     }
+}
+
+@Composable
+private fun AnimatedGoogleMapMarker(
+    context: Context,
+    marker: MapMarker,
+    isSelected: Boolean,
+    onSelectMarker: (MapMarker) -> Unit
+) {
+    val iconDescriptor = remember(marker, isSelected) {
+        MapMarkerRenderer.getMarkerBitmapDescriptor(context, marker, isSelected)
+    }
+    val markerState = rememberMarkerState(
+        key = marker.deviceId.value,
+        position = LatLng(marker.latitude, marker.longitude)
+    )
+
+    val animatedLat by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = marker.latitude.toFloat(),
+        animationSpec = androidx.compose.animation.core.tween(
+            durationMillis = 850,
+            easing = androidx.compose.animation.core.FastOutSlowInEasing
+        ),
+        label = "anim_lat_${marker.deviceId.value}"
+    )
+    val animatedLon by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = marker.longitude.toFloat(),
+        animationSpec = androidx.compose.animation.core.tween(
+            durationMillis = 850,
+            easing = androidx.compose.animation.core.FastOutSlowInEasing
+        ),
+        label = "anim_lon_${marker.deviceId.value}"
+    )
+
+    LaunchedEffect(animatedLat, animatedLon) {
+        markerState.position = LatLng(animatedLat.toDouble(), animatedLon.toDouble())
+    }
+
+    val targetBearing = marker.bearing ?: 0f
+
+    Marker(
+        state = markerState,
+        icon = iconDescriptor,
+        anchor = Offset(0.5f, 0.5f),
+        rotation = targetBearing,
+        onClick = {
+            onSelectMarker(marker)
+            true
+        }
+    )
+}
+
+/**
+ * Calculates circle perimeter polygon coordinates for OSM canvas rendering.
+ */
+private fun computeCirclePoints(
+    latitude: Double,
+    longitude: Double,
+    radiusMeters: Double,
+    steps: Int = 64
+): List<GeoPoint> {
+    return MapMarkerRenderer.getAccuracyCirclePoints(latitude, longitude, radiusMeters, steps)
 }

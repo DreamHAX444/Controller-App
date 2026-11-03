@@ -22,14 +22,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import com.livetracker.controller.core.tracker.device.domain.DeviceSelection
-import com.livetracker.controller.ui.screens.map.debug.DeviceDebugDialog
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -40,9 +43,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +53,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,7 +61,9 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.livetracker.controller.TraceApplication
 import com.livetracker.controller.core.tracker.geofence.domain.GeoFence
+import com.livetracker.controller.core.tracker.geofence.domain.GeoFenceType
 import com.livetracker.controller.core.tracker.map.domain.MapMarker
 import com.livetracker.controller.core.tracker.map.domain.MapState
 import com.livetracker.controller.ui.screens.map.components.DeviceSelectionSheet
@@ -99,8 +102,13 @@ fun MapScreen(
     val deviceSummaries by viewModel.deviceSummaries.collectAsStateWithLifecycle()
     val unacknowledgedAlerts by viewModel.unacknowledgedAlerts.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val app = context.applicationContext as? TraceApplication
+    val activeAlarmState by (app?.sirenAlertEngine?.activeAlarm?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) })
+    val isTestingSound = activeAlarmState?.alertId?.startsWith("preview_") == true
+
     var showDeviceSelector by remember { mutableStateOf(false) }
-    var showDebugDialog by remember { mutableStateOf(false) }
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
     var hasRunIntroCameraAnimation by rememberSaveable { mutableStateOf(false) }
     var hudVisible by remember { mutableStateOf(false) }
 
@@ -118,11 +126,23 @@ fun MapScreen(
     val startPadding = maxOf(16.dp, cutoutInsets.calculateStartPadding(layoutDirection) + 8.dp)
     val endPadding = maxOf(16.dp, cutoutInsets.calculateEndPadding(layoutDirection) + 8.dp)
 
-    // Hardware Back Button Hierarchy
+    val handleEditorCancelOrBack = {
+        val editingState = editorState as? GeofenceEditorState.Editing
+        if (editingState != null && editingState.isDirty) {
+            showDiscardConfirmDialog = true
+        } else {
+            viewModel.closeGeofenceEditor()
+        }
+    }
+
+    // Hardware & Gesture Back Button Hierarchy
     BackHandler(enabled = showDeviceSelector) {
         showDeviceSelector = false
     }
-    BackHandler(enabled = !showDeviceSelector && editorState !is GeofenceEditorState.Idle) {
+    BackHandler(enabled = !showDeviceSelector && editorState is GeofenceEditorState.Editing) {
+        handleEditorCancelOrBack()
+    }
+    BackHandler(enabled = !showDeviceSelector && editorState is GeofenceEditorState.ListMode) {
         viewModel.closeGeofenceEditor()
     }
     BackHandler(enabled = !showDeviceSelector && editorState is GeofenceEditorState.Idle && selectedMarker != null) {
@@ -161,16 +181,31 @@ fun MapScreen(
             val editing = editorState as GeofenceEditorState.Editing
             // Remove the previous saved version of the fence being edited so the preview replaces it cleanly
             list.removeAll { it.id == editing.id }
-            if (editing.vertices.isNotEmpty()) {
-                list.add(
-                    GeoFence(
-                        id = editing.id ?: "draft_preview",
-                        name = editing.name,
-                        vertices = editing.vertices,
-                        colorArgb = editing.colorArgb,
-                        isEnabled = true
+            if (editing.shapeType == GeoFenceType.CIRCLE) {
+                if (editing.center != null && editing.radiusMeters > 0.0) {
+                    list.add(
+                        GeoFence.createCircle(
+                            id = editing.id ?: "draft_preview",
+                            name = editing.name.ifBlank { "New Zone" },
+                            center = editing.center!!,
+                            radiusMeters = editing.radiusMeters,
+                            colorArgb = editing.colorArgb,
+                            isEnabled = true
+                        )
                     )
-                )
+                }
+            } else {
+                if (editing.vertices.isNotEmpty()) {
+                    list.add(
+                        GeoFence(
+                            id = editing.id ?: "draft_preview",
+                            name = editing.name.ifBlank { "New Zone" },
+                            vertices = editing.vertices,
+                            colorArgb = editing.colorArgb,
+                            isEnabled = true
+                        )
+                    )
+                }
             }
         }
         list
@@ -203,6 +238,7 @@ fun MapScreen(
 
     // Smooth camera refocus helper with state persistence
     fun focusOnCoordinate(lat: Double, lon: Double, zoom: Float = 15.5f) {
+        if (lat !in -90.0..90.0 || lon !in -180.0..180.0 || lat.isNaN() || lon.isNaN() || lat.isInfinite() || lon.isInfinite()) return
         viewModel.saveCameraPosition(lat, lon, zoom.toDouble())
         if (mapConfiguration.provider != MapProvider.GOOGLE_MAPS) {
             osmMapView?.controller?.animateTo(GeoPoint(lat, lon), zoom.toDouble(), 650L)
@@ -372,17 +408,18 @@ fun MapScreen(
                         viewModel.selectSingleDevice(id)
                         val target = allMarkers.find { it.deviceId == id } ?: run {
                             val summary = deviceSummaries.find { it.device.deviceId == id }
-                            if (summary != null) {
+                            val loc = summary?.latestLocation
+                            if (loc != null && summary.locationState != com.livetracker.controller.core.tracker.location.domain.LocationState.UNKNOWN) {
                                 MapMarker(
                                     deviceId = summary.device.deviceId,
                                     displayName = summary.device.displayName,
-                                    latitude = summary.latestLocation?.latitude ?: 0.0,
-                                    longitude = summary.latestLocation?.longitude ?: 0.0,
+                                    latitude = loc.latitude,
+                                    longitude = loc.longitude,
                                     locationState = summary.locationState,
-                                    accuracy = summary.latestLocation?.accuracy,
-                                    bearing = summary.latestLocation?.bearing,
-                                    speed = summary.latestLocation?.speed,
-                                    timestamp = summary.latestLocation?.timestamp ?: System.currentTimeMillis(),
+                                    accuracy = loc.accuracy,
+                                    bearing = loc.bearing,
+                                    speed = loc.speed,
+                                    timestamp = loc.timestamp,
                                     connectionState = summary.device.connectionState,
                                     healthState = summary.device.health,
                                     isSelected = true,
@@ -391,11 +428,9 @@ fun MapScreen(
                                 )
                             } else null
                         }
+                        viewModel.selectMarker(target)
                         if (target != null) {
-                            viewModel.selectMarker(target)
-                            if (target.latitude != 0.0 || target.longitude != 0.0) {
-                                focusOnCoordinate(target.latitude, target.longitude, 16.5f)
-                            }
+                            focusOnCoordinate(target.latitude, target.longitude, 16.5f)
                         }
                     },
                     onToggleMultiple = { id -> viewModel.toggleDeviceInMultipleSelection(id) },
@@ -423,7 +458,7 @@ fun MapScreen(
             GeofenceListSheet(
                 geoFences = geoFences,
                 onDismiss = { viewModel.closeGeofenceEditor() },
-                onCreateNew = { viewModel.startCreatingGeofence() },
+                onCreateNew = { shape -> viewModel.startCreatingGeofence(shape) },
                 onEdit = { fence -> viewModel.startEditingGeofence(fence) },
                 onDelete = { id -> viewModel.deleteGeofence(id) },
                 onToggleEnabled = { id, enabled -> viewModel.toggleGeofenceEnabled(id, enabled) }
@@ -440,11 +475,24 @@ fun MapScreen(
                 GeofenceEditorHud(
                     state = editingState,
                     onNameChange = { viewModel.updateEditingName(it) },
+                    onShapeChange = { viewModel.setEditingShapeType(it) },
+                    onRadiusChange = { viewModel.setCircleRadius(it) },
                     onColorChange = { viewModel.updateEditingColor(it) },
                     onEnabledChange = { viewModel.updateEditingEnabled(it) },
+                    onTriggerRuleChange = { viewModel.updateEditingTriggerRule(it) },
+                    onSoundProfileChange = { viewModel.updateEditingSoundProfile(it) },
+                    onDurationChange = { viewModel.updateEditingDurationSeconds(it) },
+                    onVibrationChange = { viewModel.updateEditingVibrationEnabled(it) },
+                    onTestSound = { profile ->
+                        app?.sirenAlertEngine?.testSoundProfile(profile, durationSeconds = 5)
+                    },
+                    onStopSound = {
+                        app?.sirenAlertEngine?.dismissAlarm()
+                    },
+                    isTestingSound = isTestingSound,
                     onUndo = { viewModel.undoLastVertex() },
                     onClear = { viewModel.clearVertices() },
-                    onCancel = { viewModel.closeGeofenceEditor() },
+                    onCancel = handleEditorCancelOrBack,
                     onSave = { viewModel.saveGeofence() },
                     topPadding = topPadding,
                     startPadding = startPadding,
@@ -556,7 +604,7 @@ fun MapScreen(
             }
         }
 
-        // 7. Minimal Empty State Indicator
+        // 7. Minimal Empty / Loading State Indicator
         AnimatedVisibility(
             visible = hudVisible && activeMarkers.isEmpty() && editorState is GeofenceEditorState.Idle,
             enter = fadeIn(tween(300)),
@@ -570,115 +618,86 @@ fun MapScreen(
                 shadowElevation = 4.dp,
                 modifier = Modifier.padding(horizontal = 24.dp)
             ) {
-                Text(
-                    text = if (deviceSummaries.isEmpty()) {
-                        "No registered trackers available"
-                    } else {
-                        "No trackers selected in current filter"
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
-                )
-            }
-        }
-
-        // 8. Floating Developer Debug Mode Button (Left Corner)
-        val debugBottomPadding by animateDpAsState(
-            targetValue = if (selectedMarker != null && editorState is GeofenceEditorState.Idle) 230.dp else 24.dp,
-            label = "DebugButtonBottomOffset"
-        )
-
-        AnimatedVisibility(
-            visible = hudVisible && editorState !is GeofenceEditorState.Editing,
-            enter = fadeIn(tween(280)),
-            exit = fadeOut(tween(200)),
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .navigationBarsPadding()
-                .padding(start = 16.dp, bottom = debugBottomPadding)
-        ) {
-            FloatingActionButton(
-                onClick = { showDebugDialog = true },
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.size(46.dp)
-            ) {
-                if (unacknowledgedAlerts.isNotEmpty()) {
-                    BadgedBox(
-                        badge = {
-                            Badge(
-                                containerColor = Color(0xFFD32F2F),
-                                modifier = Modifier.size(8.dp)
-                            )
-                        }
+                if (mapState is MapState.Initializing) {
+                    androidx.compose.foundation.layout.Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Build,
-                            contentDescription = "Developer Debug Mode",
-                            modifier = Modifier.size(20.dp)
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Loading tracker locations...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.Build,
-                        contentDescription = "Developer Debug Mode",
-                        modifier = Modifier.size(20.dp)
+                    val statusText = when {
+                        deviceSummaries.isEmpty() -> "No registered trackers available"
+                        deviceSelection is DeviceSelection.Empty -> "No trackers selected in current filter"
+                        deviceSelection is DeviceSelection.Single -> {
+                            val selectedId = (deviceSelection as DeviceSelection.Single).deviceId
+                            val summary = deviceSummaries.find { it.device.deviceId == selectedId }
+                            if (summary == null) {
+                                "Selected tracker not found"
+                            } else if (summary.device.connectionState != com.livetracker.controller.core.tracker.domain.ConnectionState.CONNECTED) {
+                                "${com.livetracker.controller.ui.util.DeviceNameFormatter.formatFriendlyName(summary.device.displayName, summary.device.deviceId.value)} is offline (no location fix)"
+                            } else {
+                                "Waiting for GPS fix from ${com.livetracker.controller.ui.util.DeviceNameFormatter.formatFriendlyName(summary.device.displayName, summary.device.deviceId.value)}..."
+                            }
+                        }
+                        else -> "No location data available for selected trackers"
+                    }
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp)
                     )
                 }
             }
         }
+    }
 
-        // 9. Developer Debug Mode Dialog Window
-        val currentMapCenterLat = if (mapConfiguration.provider != MapProvider.GOOGLE_MAPS) {
-            osmMapView?.mapCenter?.latitude ?: (selectedMarker?.latitude ?: 40.7128)
-        } else {
-            googleCameraState.position.target.latitude
-        }
-        val currentMapCenterLon = if (mapConfiguration.provider != MapProvider.GOOGLE_MAPS) {
-            osmMapView?.mapCenter?.longitude ?: (selectedMarker?.longitude ?: -74.0060)
-        } else {
-            googleCameraState.position.target.longitude
-        }
-
-        DeviceDebugDialog(
-            isOpen = showDebugDialog,
-            onDismiss = { showDebugDialog = false },
-            deviceSummaries = deviceSummaries,
-            geoFences = geoFences,
-            unacknowledgedAlerts = unacknowledgedAlerts,
-            currentMapLat = currentMapCenterLat,
-            currentMapLon = currentMapCenterLon,
-            onAddDevice = { id, name, model, lat, lon, battery, speed, bearing, state ->
-                viewModel.debugAddDevice(id, name, model, lat, lon, battery, speed, bearing, state)
+    if (showDiscardConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Discard Unsaved Changes?",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
             },
-            onMoveDevice = { id, lat, lon, speed, bearing ->
-                viewModel.debugMoveDevice(id, lat, lon, speed, bearing)
+            text = {
+                Text(
+                    text = "You have unsaved changes to this geofence perimeter. If you leave now, all your edits will be lost.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             },
-            onStepDevice = { id, dLat, dLon, speed ->
-                viewModel.debugStepDevice(id, dLat, dLon, speed)
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirmDialog = false
+                        viewModel.closeGeofenceEditor()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Discard", fontWeight = FontWeight.Bold)
+                }
             },
-            onTeleportInsideGeofence = { id, fence ->
-                viewModel.debugTeleportInsideGeofence(id, fence)
-            },
-            onTeleportOutsideGeofence = { id, fence ->
-                viewModel.debugTeleportOutsideGeofence(id, fence)
-            },
-            onToggleConnection = { id ->
-                viewModel.debugToggleDeviceConnection(id)
-            },
-            onRemoveDevice = { id ->
-                viewModel.debugRemoveDevice(id)
-            },
-            onClearAllDevices = {
-                viewModel.debugClearAllDevices()
-            },
-            onSpawnPresetFleet = {
-                viewModel.debugSpawnPresetFleet()
-            },
-            onFocusDeviceOnMap = { lat, lon ->
-                focusOnCoordinate(lat, lon, 16.5f)
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirmDialog = false
+                    }
+                ) {
+                    Text("Keep Editing", fontWeight = FontWeight.SemiBold)
+                }
             }
         )
     }

@@ -7,5 +7,7 @@ data class User(
     val accountStatus: AccountStatus,
     val devicePermissions: List<DevicePermission>,
     val createdAt: Long = 0L,
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    val email: String? = null,
+    val avatarUrl: String? = null
 )

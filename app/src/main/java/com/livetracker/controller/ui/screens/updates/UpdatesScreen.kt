@@ -95,13 +95,6 @@ fun UpdatesScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Page Title
-        Text(
-            text = "Software Updates",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
         // 1. Current App Identity Card
         Card(
             shape = RoundedCornerShape(12.dp),

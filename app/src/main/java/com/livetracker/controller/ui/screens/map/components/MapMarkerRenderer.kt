@@ -179,6 +179,20 @@ object MapMarkerRenderer {
         return descriptor
     }
 
+    // High-visibility, distinct palette for individual devices
+    private val DEVICE_PALETTE = intArrayOf(
+        android.graphics.Color.parseColor("#0284C7"), // Electric Sky Blue
+        android.graphics.Color.parseColor("#10B981"), // Emerald Green
+        android.graphics.Color.parseColor("#F59E0B"), // Amber / Gold
+        android.graphics.Color.parseColor("#8B5CF6"), // Vivid Violet
+        android.graphics.Color.parseColor("#EF4444"), // Coral Red
+        android.graphics.Color.parseColor("#EC4899"), // Neon Pink
+        android.graphics.Color.parseColor("#06B6D4"), // Vibrant Cyan
+        android.graphics.Color.parseColor("#F97316"), // Bright Orange
+        android.graphics.Color.parseColor("#6366F1"), // Indigo
+        android.graphics.Color.parseColor("#84CC16")  // Lime
+    )
+
     private fun renderBeaconBitmap(
         context: Context,
         marker: MapMarker,
@@ -186,90 +200,105 @@ object MapMarkerRenderer {
         hasBearing: Boolean
     ): Bitmap {
         val density = context.resources.displayMetrics.density
-        // Selected marker size: 48dp, unselected: 38dp
-        val sizeDp = if (isSelected) 48f else 38f
+        // Arrow marker size: 44dp when selected, 36dp when normal
+        val sizeDp = if (isSelected) 44f else 36f
         val sizePx = (sizeDp * density).toInt().coerceAtLeast(32)
 
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         val center = sizePx / 2f
-        val radius = center - (4f * density)
+        val arrowColor = computeDeviceColor(marker.deviceId, marker.connectionState, marker.locationState)
+        val isOffline = (marker.connectionState == ConnectionState.DISCONNECTED ||
+                marker.connectionState == ConnectionState.FAILED ||
+                marker.locationState == LocationState.OFFLINE ||
+                marker.locationState == LocationState.UNKNOWN)
 
-        // Generate consistent, sophisticated golden-angle color per device ID
-        val baseColor = computeDeviceColor(marker.deviceId, marker.connectionState, marker.locationState)
+        // Geometric dimensions for the standalone chevron arrow (no circle background)
+        val arrowHeight = sizePx * 0.74f
+        val arrowWidth = sizePx * 0.58f
+        val arrowTipY = center - (arrowHeight * 0.52f)
+        val arrowBaseY = center + (arrowHeight * 0.48f)
+        val arrowInnerY = center + (arrowHeight * 0.16f)
+        val arrowWingX = arrowWidth * 0.50f
 
-        // 1. Soft ambient shadow under beacon
+        val path = Path().apply {
+            moveTo(center, arrowTipY)
+            lineTo(center - arrowWingX, arrowBaseY)
+            lineTo(center, arrowInnerY)
+            lineTo(center + arrowWingX, arrowBaseY)
+            close()
+        }
+
+        // 1. Subtle drop shadow for depth and elevation
         val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.argb(70, 0, 0, 0)
-            style = Paint.Style.FILL
-            setShadowLayer(4f * density, 0f, 2f * density, android.graphics.Color.argb(90, 0, 0, 0))
-        }
-        canvas.drawCircle(center, center, radius, shadowPaint)
-
-        // 2. Solid color core
-        val corePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = baseColor
-            style = Paint.Style.FILL
-        }
-        canvas.drawCircle(center, center, radius, corePaint)
-
-        // 3. Crisp white outer ring for maximum contrast against any map style
-        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.WHITE
+            color = android.graphics.Color.argb(80, 0, 0, 0)
             style = Paint.Style.STROKE
-            strokeWidth = if (isSelected) 3.5f * density else 2.5f * density
+            strokeWidth = 3f * density
+            strokeJoin = Paint.Join.ROUND
+            strokeCap = Paint.Cap.ROUND
         }
-        canvas.drawCircle(center, center, radius, strokePaint)
+        canvas.drawPath(path, shadowPaint)
 
-        // 4. Directional heading glyph or concentric resting dot
-        val glyphPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.WHITE
+        // 2. High-contrast border outline so arrow is razor-sharp on any map style
+        if (isSelected) {
+            val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                style = Paint.Style.STROKE
+                strokeWidth = 5f * density
+                strokeJoin = Paint.Join.ROUND
+                strokeCap = Paint.Cap.ROUND
+            }
+            canvas.drawPath(path, haloPaint)
+        }
+
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (isOffline) {
+                android.graphics.Color.parseColor("#64748B") // Slate outline for grey arrow
+            } else {
+                android.graphics.Color.argb(230, 15, 23, 42) // Deep navy/black border for contrast
+            }
+            style = Paint.Style.STROKE
+            strokeWidth = if (isSelected) 3.5f * density else 2.2f * density
+            strokeJoin = Paint.Join.ROUND
+            strokeCap = Paint.Cap.ROUND
+        }
+        canvas.drawPath(path, borderPaint)
+
+        // 3. Solid colored arrow body (distinct per device, or muted white-grey when offline)
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = arrowColor
             style = Paint.Style.FILL
         }
-
-        if (hasBearing) {
-            // Sleek aerodynamic chevron arrow pointing upwards (marker rotation handles orientation)
-            val path = Path().apply {
-                val arrowTipY = center - (radius * 0.55f)
-                val arrowBaseY = center + (radius * 0.45f)
-                val arrowInnerY = center + (radius * 0.15f)
-                val arrowWingX = radius * 0.45f
-
-                moveTo(center, arrowTipY)
-                lineTo(center - arrowWingX, arrowBaseY)
-                lineTo(center, arrowInnerY)
-                lineTo(center + arrowWingX, arrowBaseY)
-                close()
-            }
-            canvas.drawPath(path, glyphPaint)
-        } else {
-            // Minimalist centered pulse dot
-            canvas.drawCircle(center, center, radius * 0.35f, glyphPaint)
-        }
+        canvas.drawPath(path, fillPaint)
 
         return bitmap
     }
 
     /**
-     * Determines marker accent color according to connection health and golden-angle distribution.
+     * Determines marker accent color according to connection health and device palette.
+     * When offline or disconnected, turns into muted grey/white.
+     * When active, assigns a distinct vibrant color per device ID.
      */
     fun computeDeviceColor(
         deviceId: TrackerId,
         connectionState: ConnectionState,
         locationState: LocationState
     ): Int {
-        if (connectionState == ConnectionState.DISCONNECTED || locationState == LocationState.OFFLINE) {
-            return android.graphics.Color.parseColor("#64748B") // Slate offline
+        if (connectionState == ConnectionState.DISCONNECTED ||
+            connectionState == ConnectionState.FAILED ||
+            locationState == LocationState.OFFLINE ||
+            locationState == LocationState.UNKNOWN
+        ) {
+            return android.graphics.Color.parseColor("#CBD5E1") // Muted white-grey
         }
-        if (connectionState == ConnectionState.CONNECTING) {
-            return android.graphics.Color.parseColor("#F59E0B") // Amber connecting
+        if (connectionState != ConnectionState.CONNECTED || locationState == LocationState.STALE) {
+            return android.graphics.Color.parseColor("#F59E0B") // Amber connecting / stale
         }
 
-        // Active connected device: golden angle hue distribution for instant distinction
+        // Active connected device: deterministic distinct palette color per device
         val hash = abs(deviceId.value.hashCode())
-        val hue = (hash * 137.5f) % 360f
-        return android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.82f, 0.88f))
+        return DEVICE_PALETTE[hash % DEVICE_PALETTE.size]
     }
 
     /**

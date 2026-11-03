@@ -35,6 +35,9 @@ interface WebRtcSession {
     /** Creates a new DataChannel with the given label */
     fun createDataChannel(label: String): com.livetracker.controller.core.tracker.webrtc.datachannel.TrackerDataChannel?
     
+    /** Retrieves an existing active DataChannel by label, or null if none exists */
+    fun getDataChannel(label: String): com.livetracker.controller.core.tracker.webrtc.datachannel.TrackerDataChannel? = null
+
     /** Emits DataChannels created by the remote peer */
     val incomingDataChannels: Flow<com.livetracker.controller.core.tracker.webrtc.datachannel.TrackerDataChannel>
 }

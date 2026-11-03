@@ -41,6 +41,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,11 +58,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.livetracker.controller.core.tracker.domain.ConnectionState
 import com.livetracker.controller.core.tracker.location.domain.LocationState
+import com.livetracker.controller.core.tracker.location.domain.formatElapsedSwift
 import com.livetracker.controller.core.tracker.map.domain.MapMarker
 import com.livetracker.controller.ui.theme.StatusConnecting
 import com.livetracker.controller.ui.theme.StatusError
 import com.livetracker.controller.ui.theme.StatusLive
 import com.livetracker.controller.ui.theme.StatusOffline
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 /**
@@ -78,6 +85,13 @@ fun DeviceTelemetryCard(
     onNextDevice: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    var currentTimeMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000L)
+            currentTimeMillis = System.currentTimeMillis()
+        }
+    }
 
     Card(
         modifier = modifier
@@ -139,7 +153,7 @@ fun DeviceTelemetryCard(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Text(
-                        text = marker.displayName,
+                        text = com.livetracker.controller.ui.util.DeviceNameFormatter.formatFriendlyName(marker.displayName, marker.deviceId.value),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -231,18 +245,22 @@ fun DeviceTelemetryCard(
                 )
 
                 // 2. Velocity & Motion
-                val speed = marker.speed ?: 0f
-                val isMoving = speed > 0.5f
+                val speed = marker.speed
+                val isMoving = speed != null && speed > 0.5f && !speed.isNaN() && !speed.isInfinite()
                 TelemetryTile(
                     label = "MOVEMENT",
-                    value = if (isMoving) String.format(Locale.US, "%.1f km/h", speed) else "Stationary",
+                    value = when {
+                        speed == null || speed.isNaN() || speed.isInfinite() -> "N/A"
+                        isMoving -> String.format(Locale.US, "%.1f km/h", speed)
+                        else -> "Stationary"
+                    },
                     valueColor = if (isMoving) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1.2f)
                 )
 
                 // 3. Heading & Compass
                 val bearing = marker.bearing
-                val compassText = if (bearing != null) {
+                val compassText = if (bearing != null && !bearing.isNaN() && !bearing.isInfinite()) {
                     "${bearing.toInt()}° ${computeCardinalDirection(bearing)}"
                 } else {
                     "None"
@@ -257,7 +275,11 @@ fun DeviceTelemetryCard(
                 val accuracy = marker.accuracy
                 TelemetryTile(
                     label = "ACCURACY",
-                    value = if (accuracy != null) "±${accuracy.toInt()}m" else "±10m",
+                    value = if (accuracy != null && accuracy > 0f && !accuracy.isNaN() && !accuracy.isInfinite()) {
+                        "±${accuracy.toInt()}m"
+                    } else {
+                        "N/A"
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -296,7 +318,7 @@ fun DeviceTelemetryCard(
                         )
                     }
                     Text(
-                        text = "${marker.networkState ?: "Cellular"} • Updated ${formatRelativeTime(marker.timestamp)}",
+                        text = "${marker.networkState ?: "Cellular"} • Updated ${formatElapsedSwift(marker.timestamp, currentTimeMillis)}",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -409,12 +431,4 @@ private fun computeCardinalDirection(bearing: Float): String {
     }
 }
 
-private fun formatRelativeTime(timestamp: Long): String {
-    val elapsedSeconds = (System.currentTimeMillis() - timestamp) / 1000
-    return when {
-        elapsedSeconds < 5 -> "Just now"
-        elapsedSeconds < 60 -> "${elapsedSeconds}s ago"
-        elapsedSeconds < 3600 -> "${elapsedSeconds / 60}m ago"
-        else -> "${elapsedSeconds / 3600}h ago"
-    }
-}
+

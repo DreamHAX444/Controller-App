@@ -128,4 +128,155 @@ class AuthenticationViewModelTest {
         val token = credentialStore.getSecureToken().getOrNull()
         assertTrue(token == null)
     }
+
+    @Test
+    fun `login with OWNER role sets authenticated state with OWNER profile`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("owner")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(state is AuthenticationState.Authenticated)
+        assertEquals(Role.OWNER, (state as AuthenticationState.Authenticated).session.user.role)
+    }
+
+    @Test
+    fun `login with USER role sets authenticated state with USER profile`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("user")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(state is AuthenticationState.Authenticated)
+        assertEquals(Role.USER, (state as AuthenticationState.Authenticated).session.user.role)
+    }
+
+    @Test
+    fun `login with VISITOR role sets authenticated state with VISITOR profile`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("visitor")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(state is AuthenticationState.Authenticated)
+        assertEquals(Role.VISITOR, (state as AuthenticationState.Authenticated).session.user.role)
+    }
+
+    @Test
+    fun `login with pending account sets AccountPending state`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("pending")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthenticationState.AccountPending, viewModel.state.value)
+    }
+
+    @Test
+    fun `startup with pending account restores to AccountPending state`() = runTest(testDispatcher) {
+        credentialStore.storeSecureToken("pending")
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthenticationState.AccountPending, viewModel.state.value)
+    }
+
+    @Test
+    fun `login with suspended account sets AccountSuspended state`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("suspended")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthenticationState.AccountSuspended, viewModel.state.value)
+    }
+
+    @Test
+    fun `login with disabled account sets AccountDisabled state`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("disabled")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthenticationState.AccountDisabled, viewModel.state.value)
+    }
+
+    @Test
+    fun `user cancellation during login returns to unauthenticated cleanly without crashing`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("admin")
+        assertEquals(AuthenticationState.Authenticating, viewModel.state.value)
+
+        viewModel.cancelLogin()
+        assertEquals(AuthenticationState.Unauthenticated, viewModel.state.value)
+    }
+
+    @Test
+    fun `network error during login transitions to AuthenticationUnavailable state`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("unavailable")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthenticationState.AuthenticationUnavailable, viewModel.state.value)
+    }
+
+    @Test
+    fun `concurrency - rapid multiple sign-in taps prevented while authenticating`() = runTest(testDispatcher) {
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.login("admin")
+        assertEquals(AuthenticationState.Authenticating, viewModel.state.value)
+
+        // Rapid second tap for a different user while still authenticating
+        viewModel.login("user")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Verifies that first request completed and second tap was dropped
+        val state = viewModel.state.value
+        assertTrue(state is AuthenticationState.Authenticated)
+        assertEquals("u1", (state as AuthenticationState.Authenticated).session.user.id)
+    }
+
+    @Test
+    fun `validateSession with expired session transitions authenticated to SessionExpired`() = runTest(testDispatcher) {
+        createViewModel()
+        viewModel.login("admin")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.state.value is AuthenticationState.Authenticated)
+
+        // Simulate session expiration / external invalidation in repository
+        sessionRepository.invalidateSession()
+
+        viewModel.validateSession()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(AuthenticationState.SessionExpired, viewModel.state.value)
+    }
+
+    @Test
+    fun `validateSession with valid session maintains Authenticated state`() = runTest(testDispatcher) {
+        createViewModel()
+        viewModel.login("admin")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.state.value is AuthenticationState.Authenticated)
+
+        viewModel.validateSession()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.state.value is AuthenticationState.Authenticated)
+    }
 }

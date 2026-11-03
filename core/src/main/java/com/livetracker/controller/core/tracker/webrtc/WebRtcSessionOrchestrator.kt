@@ -1,5 +1,6 @@
 package com.livetracker.controller.core.tracker.webrtc
 
+import android.util.Log
 import com.livetracker.controller.core.tracker.domain.TrackerId
 import com.livetracker.controller.core.tracker.signaling.SignalingMessage
 import com.livetracker.controller.core.tracker.signaling.SignalingMessageType
@@ -23,6 +24,7 @@ class WebRtcSessionOrchestrator(
     private val signalingSession: SignalingSession,
     private val scope: CoroutineScope
 ) {
+    private val tag = "WebRtcSessionOrchestrator"
     private var signalObservationJob: Job? = null
     private var iceObservationJob: Job? = null
 
@@ -30,39 +32,66 @@ class WebRtcSessionOrchestrator(
         signalObservationJob?.cancel()
         iceObservationJob?.cancel()
 
+        scope.launch {
+            try {
+                Log.d(tag, "Starting signaling session for tracker: $trackerId")
+                signalingSession.start()
+                Log.d(tag, "Signaling session connected for tracker: $trackerId")
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to start signaling session: ${e.message}", e)
+            }
+        }
+
         signalObservationJob = signalingSession.incomingMessages
             .onEach { message -> handleIncomingSignal(message) }
             .launchIn(scope)
 
         iceObservationJob = webRtcSession.localIceCandidates
             .onEach { candidate ->
-                signalingSession.sendMessage(
-                    type = SignalingMessageType.ICE_CANDIDATE,
-                    payload = candidate
-                )
+                try {
+                    signalingSession.sendMessage(
+                        type = SignalingMessageType.ICE_CANDIDATE,
+                        payload = candidate
+                    )
+                    Log.d(tag, "Sent local ICE candidate to $trackerId")
+                } catch (e: Exception) {
+                    Log.w(tag, "Failed to send local ICE candidate: ${e.message}")
+                }
             }
             .launchIn(scope)
     }
 
     private suspend fun handleIncomingSignal(message: SignalingMessage) {
+        Log.d(tag, "Incoming signal: ${message.type} from ${message.trackerId}")
         when (message.type) {
             SignalingMessageType.OFFER -> {
-                val offer = message.payload as? OfferPayload ?: return
+                val offer = message.payload as? OfferPayload ?: run {
+                    Log.w(tag, "Received OFFER with invalid payload: ${message.payload}")
+                    return
+                }
                 try {
+                    Log.i(tag, "Processing remote OFFER from $trackerId (gen=${offer.generation})")
                     val answer = webRtcSession.setRemoteOfferAndCreateAnswer(offer)
                     signalingSession.sendMessage(
                         type = SignalingMessageType.ANSWER,
                         payload = answer
                     )
+                    Log.i(tag, "Generated and dispatched WebRTC ANSWER to $trackerId")
                 } catch (e: Exception) {
-                    // Log or handle error creating answer
+                    Log.e(tag, "Failed to process OFFER / create ANSWER: ${e.message}", e)
                 }
             }
             SignalingMessageType.ICE_CANDIDATE -> {
                 val candidate = message.payload as? IceCandidatePayload ?: return
-                webRtcSession.addIceCandidate(candidate)
+                try {
+                    webRtcSession.addIceCandidate(candidate)
+                    Log.d(tag, "Applied remote ICE candidate from $trackerId")
+                } catch (e: Exception) {
+                    Log.w(tag, "Failed to apply remote ICE candidate: ${e.message}")
+                }
             }
             SignalingMessageType.SESSION_ENDED, SignalingMessageType.STOP_REQUEST -> {
+                Log.i(tag, "Session ended signal received from $trackerId")
                 stop()
             }
             else -> {
@@ -75,7 +104,16 @@ class WebRtcSessionOrchestrator(
         signalObservationJob?.cancel()
         iceObservationJob?.cancel()
         scope.launch {
-            webRtcSession.stop()
+            try {
+                signalingSession.stop()
+            } catch (e: Exception) {
+                Log.w(tag, "Error stopping signaling session: ${e.message}")
+            }
+            try {
+                webRtcSession.stop()
+            } catch (e: Exception) {
+                Log.w(tag, "Error stopping webRtc session: ${e.message}")
+            }
         }
     }
 }

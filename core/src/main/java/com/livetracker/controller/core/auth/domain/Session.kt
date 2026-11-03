@@ -7,7 +7,7 @@ data class Session(
     val createdAt: Long,
     val expiresAt: Long
 ) {
-    fun isValid(currentTime: Long): Boolean {
+    fun isValid(currentTime: Long = System.currentTimeMillis()): Boolean {
         return isAuthenticated && currentTime < expiresAt
     }
 }

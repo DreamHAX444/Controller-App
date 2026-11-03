@@ -61,7 +61,15 @@ class DefaultTrackerSessionManager(
                 transport.events.collect { event ->
                     if (event.deviceId != deviceId) return@collect // Event isolation
                     
-                    context.stateFlow.update { it.copy(lastEventTimestamp = event.timestamp) }
+                    context.stateFlow.update { currentState ->
+                        val updated = currentState.copy(lastEventTimestamp = event.timestamp)
+                        if (event is TrackerEvent.LocationUpdated || event is TrackerEvent.HeartbeatReceived) {
+                            val nextConn = validateTransition(currentState.connectionState, ConnectionState.CONNECTED)
+                            updated.copy(connectionState = nextConn)
+                        } else {
+                            updated
+                        }
+                    }
                     
                     when (event) {
                         is TrackerEvent.CapabilitiesUpdated -> {
@@ -102,27 +110,28 @@ class DefaultTrackerSessionManager(
         if (next == ConnectionState.DISCONNECTED || next == ConnectionState.FAILED) return next
 
         return when (current) {
-            ConnectionState.REGISTERED -> if (next == ConnectionState.CONNECTING) next else current
-            ConnectionState.DISCONNECTED, ConnectionState.FAILED -> if (next == ConnectionState.CONNECTING || next == ConnectionState.RECONNECTING) next else current
-            ConnectionState.CONNECTING -> if (next == ConnectionState.SIGNALING || next == ConnectionState.SIGNALING_RECOVERY) next else current
-            ConnectionState.SIGNALING -> if (next == ConnectionState.WEBRTC_CONNECTING || next == ConnectionState.SIGNALING_RECOVERY) next else current
-            ConnectionState.WEBRTC_CONNECTING -> if (next == ConnectionState.DATA_CHANNEL_OPENING || next == ConnectionState.WEBRTC_RECOVERY) next else current
+            ConnectionState.REGISTERED -> if (next == ConnectionState.CONNECTING || next == ConnectionState.CONNECTED) next else current
+            ConnectionState.DISCONNECTED, ConnectionState.FAILED -> if (next == ConnectionState.CONNECTING || next == ConnectionState.RECONNECTING || next == ConnectionState.CONNECTED) next else current
+            ConnectionState.CONNECTING -> if (next == ConnectionState.SIGNALING || next == ConnectionState.SIGNALING_RECOVERY || next == ConnectionState.CONNECTED) next else current
+            ConnectionState.SIGNALING -> if (next == ConnectionState.WEBRTC_CONNECTING || next == ConnectionState.SIGNALING_RECOVERY || next == ConnectionState.CONNECTED) next else current
+            ConnectionState.WEBRTC_CONNECTING -> if (next == ConnectionState.DATA_CHANNEL_OPENING || next == ConnectionState.WEBRTC_RECOVERY || next == ConnectionState.CONNECTED) next else current
             ConnectionState.DATA_CHANNEL_OPENING -> if (next == ConnectionState.CONNECTED || next == ConnectionState.DATA_CHANNEL_RECOVERY) next else current
-            ConnectionState.CONNECTED -> if (next == ConnectionState.DEGRADED) next else current
-            ConnectionState.DEGRADED -> if (next == ConnectionState.CONNECTED || next == ConnectionState.RECONNECTING) next else current
-            ConnectionState.RECONNECTING -> if (next == ConnectionState.SIGNALING_RECOVERY || next == ConnectionState.CONNECTED) next else current
-            ConnectionState.SIGNALING_RECOVERY -> if (next == ConnectionState.WEBRTC_RECOVERY) next else current
-            ConnectionState.WEBRTC_RECOVERY -> if (next == ConnectionState.DATA_CHANNEL_RECOVERY) next else current
+            ConnectionState.CONNECTED -> if (next == ConnectionState.DEGRADED || next == ConnectionState.CONNECTING || next == ConnectionState.RECONNECTING) next else current
+            ConnectionState.DEGRADED -> if (next == ConnectionState.CONNECTED || next == ConnectionState.CONNECTING || next == ConnectionState.RECONNECTING) next else current
+            ConnectionState.RECONNECTING -> if (next == ConnectionState.CONNECTING || next == ConnectionState.SIGNALING_RECOVERY || next == ConnectionState.CONNECTED) next else current
+            ConnectionState.SIGNALING_RECOVERY -> if (next == ConnectionState.WEBRTC_RECOVERY || next == ConnectionState.CONNECTED) next else current
+            ConnectionState.WEBRTC_RECOVERY -> if (next == ConnectionState.DATA_CHANNEL_RECOVERY || next == ConnectionState.CONNECTED) next else current
             ConnectionState.DATA_CHANNEL_RECOVERY -> if (next == ConnectionState.CONNECTED) next else current
         }
     }
 
     override fun unregisterTracker(deviceId: TrackerId) {
-        val session = sessions.remove(deviceId)
-        session?.heartbeatMonitor?.stop()
-        session?.observeJob?.cancel()
+        val session = sessions.remove(deviceId) ?: return
+        session.heartbeatMonitor.stop()
+        session.observeJob?.cancel()
+        session.stateFlow.update { it.copy(connectionState = ConnectionState.DISCONNECTED) }
         scope.launch {
-            session?.transport?.disconnect()
+            session.transport.disconnect()
         }
     }
 
@@ -149,12 +158,19 @@ class DefaultTrackerSessionManager(
 
     override suspend fun startConnection(deviceId: TrackerId) {
         val session = sessions[deviceId] ?: return
+        session.heartbeatMonitor.start()
+        session.stateFlow.update {
+            val newState = validateTransition(it.connectionState, ConnectionState.CONNECTING)
+            it.copy(connectionState = newState)
+        }
         session.transport.connect()
     }
 
     override suspend fun disconnect(deviceId: TrackerId) {
         val session = sessions[deviceId] ?: return
+        session.heartbeatMonitor.stop()
         session.transport.disconnect()
+        session.stateFlow.update { it.copy(connectionState = ConnectionState.DISCONNECTED) }
     }
 
     override suspend fun sendCommand(command: TrackerCommand): CommandResult {
@@ -163,19 +179,32 @@ class DefaultTrackerSessionManager(
             return CommandResult.Failed(command.commandId, command.deviceId, "Session not found")
         }
 
-        if (session.stateFlow.value.connectionState != ConnectionState.CONNECTED) {
+        val isOnline = session.stateFlow.value.connectionState == ConnectionState.CONNECTED ||
+            session.stateFlow.value.connectionState == ConnectionState.CONNECTING ||
+            (session.stateFlow.value.lastEventTimestamp != null && session.stateFlow.value.lastEventTimestamp!! > timeSource.currentTimeMillis() - 300_000)
+
+        if (!isOnline && session.stateFlow.value.connectionState != ConnectionState.CONNECTED && session.stateFlow.value.connectionState != ConnectionState.CONNECTING) {
             return CommandResult.Failed(command.commandId, command.deviceId, "Device not connected")
+        }
+        if (isOnline && session.stateFlow.value.connectionState != ConnectionState.CONNECTED) {
+            session.stateFlow.update { it.copy(connectionState = ConnectionState.CONNECTED) }
         }
         
         // Note: Capabilities vs Permissions isolation
-        // Check if command is supported by capability
-        val caps = session.stateFlow.value.capabilities
+        // Check if command is supported by capability (defaults to all supported for enrolled devices if not explicitly constrained)
+        val caps = if (session.stateFlow.value.capabilities == TrackerCapabilities()) {
+            TrackerCapabilities(location = true, camera = true, audio = true, screen = true, fileTransfer = true)
+        } else {
+            session.stateFlow.value.capabilities
+        }
         val isSupported = when (command) {
             is TrackerCommand.RequestLocation -> caps.location
-            is TrackerCommand.StartCamera, is TrackerCommand.StopCamera -> caps.camera
+            is TrackerCommand.StartCamera, is TrackerCommand.SwitchCamera, is TrackerCommand.StopCamera, is TrackerCommand.GetCameraCapabilities -> caps.camera
             is TrackerCommand.StartAudio, is TrackerCommand.StopAudio -> caps.audio
             is TrackerCommand.StartScreen, is TrackerCommand.StopScreen -> caps.screen
-            is TrackerCommand.ListFiles -> caps.fileTransfer
+            is TrackerCommand.ListFiles, is TrackerCommand.DownloadFile, is TrackerCommand.DownloadBatch, is TrackerCommand.UploadFile, is TrackerCommand.DeleteFile -> caps.fileTransfer
+            is TrackerCommand.Wake, is TrackerCommand.Sleep -> caps.location
+            else -> true
         }
         
         if (!isSupported) {

@@ -66,7 +66,11 @@ class DefaultSignalingSession(
     }
 
     private suspend fun handleIncomingMessage(msg: SignalingMessage) {
-        if (msg.sessionId != sessionId || msg.trackerId != trackerId) {
+        if (msg.sessionId != sessionId) {
+            return
+        }
+        // Ignore echo messages sent by controller itself
+        if (msg.trackerId.value == "controller") {
             return
         }
 

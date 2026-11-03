@@ -12,10 +12,14 @@ import com.livetracker.controller.core.tracker.device.domain.TrackerDeviceReposi
 import com.livetracker.controller.core.tracker.device.domain.TrackerDeviceSummary
 import com.livetracker.controller.core.tracker.domain.ConnectionState
 import com.livetracker.controller.core.tracker.domain.TrackerId
+import com.livetracker.controller.core.tracker.geofence.domain.AlertSoundProfile
+import com.livetracker.controller.core.tracker.geofence.domain.DistanceCalculator
 import com.livetracker.controller.core.tracker.geofence.domain.EvaluateGeoFencesUseCase
 import com.livetracker.controller.core.tracker.geofence.domain.GeoFence
 import com.livetracker.controller.core.tracker.geofence.domain.GeoFenceRepository
+import com.livetracker.controller.core.tracker.geofence.domain.GeoFenceType
 import com.livetracker.controller.core.tracker.geofence.domain.GeoPoint2D
+import com.livetracker.controller.core.tracker.geofence.domain.GeofenceTriggerRule
 import com.livetracker.controller.core.tracker.location.domain.Location
 import com.livetracker.controller.core.tracker.location.domain.LocationState
 import com.livetracker.controller.core.tracker.location.domain.TrackerLocationRepository
@@ -44,7 +48,7 @@ import java.util.UUID
 
 /**
  * Reactive ViewModel orchestrating live map telemetry, device selection filters,
- * the interactive polygon geofence state machine, and real-time developer debug controls.
+ * and the interactive geofence state machine.
  */
 class MapViewModel(
     observeMapStateUseCase: ObserveMapStateUseCase,
@@ -103,6 +107,34 @@ class MapViewModel(
     private val _selectedMarker = MutableStateFlow<MapMarker?>(null)
     val selectedMarker: StateFlow<MapMarker?> = _selectedMarker.asStateFlow()
 
+    private var pendingSingleSelection: TrackerId? = null
+
+    init {
+        viewModelScope.launch {
+            mapState.collect { state ->
+                val current = _selectedMarker.value
+                when (state) {
+                    is MapState.Active -> {
+                        if (current != null) {
+                            val updated = state.markers.find { it.deviceId == current.deviceId }
+                            _selectedMarker.value = updated
+                        } else if (pendingSingleSelection != null) {
+                            val target = state.markers.find { it.deviceId == pendingSingleSelection }
+                            if (target != null) {
+                                _selectedMarker.value = target
+                                pendingSingleSelection = null
+                            }
+                        }
+                    }
+                    MapState.Empty -> {
+                        _selectedMarker.value = null
+                    }
+                    MapState.Initializing -> {}
+                }
+            }
+        }
+    }
+
     private val _geofenceEditorState = MutableStateFlow<GeofenceEditorState>(GeofenceEditorState.Idle)
     val geofenceEditorState: StateFlow<GeofenceEditorState> = _geofenceEditorState.asStateFlow()
 
@@ -127,6 +159,9 @@ class MapViewModel(
     // Marker Focus
     fun selectMarker(marker: MapMarker?) {
         _selectedMarker.value = marker
+        if (marker == null) {
+            pendingSingleSelection = null
+        }
     }
 
     // Layer Visibility
@@ -137,18 +172,23 @@ class MapViewModel(
     // Device Selection
     fun selectAllDevices() {
         deviceSelectionManager?.selectAll()
+        pendingSingleSelection = null
     }
 
     fun selectSingleDevice(deviceId: TrackerId) {
         deviceSelectionManager?.selectDevice(deviceId)
         val marker = (mapState.value as? MapState.Active)?.markers?.find { it.deviceId == deviceId }
-        if (marker != null) {
-            _selectedMarker.value = marker
-        }
+        _selectedMarker.value = marker
+        pendingSingleSelection = if (marker == null) deviceId else null
     }
 
     fun selectMultipleDevices(deviceIds: Set<TrackerId>) {
         deviceSelectionManager?.selectMultipleDevices(deviceIds)
+        pendingSingleSelection = null
+        val currentSelectedId = _selectedMarker.value?.deviceId
+        if (currentSelectedId != null && currentSelectedId !in deviceIds) {
+            _selectedMarker.value = null
+        }
     }
 
     fun toggleDeviceInMultipleSelection(deviceId: TrackerId) {
@@ -184,13 +224,21 @@ class MapViewModel(
         _geofenceEditorState.value = GeofenceEditorState.Idle
     }
 
-    fun startCreatingGeofence() {
+    fun startCreatingGeofence(initialShape: GeoFenceType = GeoFenceType.POLYGON) {
         _geofenceEditorState.value = GeofenceEditorState.Editing(
             id = null,
             name = "",
+            shapeType = initialShape,
             vertices = emptyList(),
+            center = null,
+            radiusMeters = 200.0,
             colorArgb = GEOFENCE_PRESET_COLORS.first(),
-            isEnabled = true
+            isEnabled = true,
+            triggerRule = GeofenceTriggerRule.BOTH,
+            soundProfile = AlertSoundProfile.TACTICAL_SIREN,
+            durationSeconds = 30,
+            targetDeviceId = null,
+            isVibrationEnabled = true
         )
     }
 
@@ -198,9 +246,44 @@ class MapViewModel(
         _geofenceEditorState.value = GeofenceEditorState.Editing(
             id = fence.id,
             name = fence.name,
+            shapeType = fence.type,
             vertices = fence.vertices,
+            center = fence.center,
+            radiusMeters = fence.radiusMeters ?: 200.0,
             colorArgb = fence.colorArgb,
-            isEnabled = fence.isEnabled
+            isEnabled = fence.isEnabled,
+            triggerRule = fence.triggerRule,
+            soundProfile = fence.soundProfile,
+            durationSeconds = fence.durationSeconds,
+            targetDeviceId = fence.targetDeviceId,
+            isVibrationEnabled = fence.isVibrationEnabled,
+            originalFence = fence
+        )
+    }
+
+    fun setEditingShapeType(shapeType: GeoFenceType) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        if (current.shapeType == shapeType) return
+        _geofenceEditorState.value = current.copy(
+            shapeType = shapeType,
+            validationError = null
+        )
+    }
+
+    fun setCircleCenter(latitude: Double, longitude: Double) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        _geofenceEditorState.value = current.copy(
+            center = GeoPoint2D(latitude, longitude),
+            validationError = null
+        )
+    }
+
+    fun setCircleRadius(radiusMeters: Double) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        val clamped = radiusMeters.coerceIn(10.0, 50000.0)
+        _geofenceEditorState.value = current.copy(
+            radiusMeters = clamped,
+            validationError = null
         )
     }
 
@@ -219,14 +302,53 @@ class MapViewModel(
         _geofenceEditorState.value = current.copy(isEnabled = isEnabled)
     }
 
+    fun updateEditingTriggerRule(rule: GeofenceTriggerRule) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        _geofenceEditorState.value = current.copy(triggerRule = rule)
+    }
+
+    fun updateEditingSoundProfile(profile: AlertSoundProfile) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        _geofenceEditorState.value = current.copy(soundProfile = profile)
+    }
+
+    fun updateEditingDurationSeconds(seconds: Int) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        _geofenceEditorState.value = current.copy(durationSeconds = seconds.coerceIn(5, 300))
+    }
+
+    fun updateEditingTargetDeviceId(targetDeviceId: TrackerId?) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        _geofenceEditorState.value = current.copy(targetDeviceId = targetDeviceId)
+    }
+
+    fun updateEditingVibrationEnabled(enabled: Boolean) {
+        val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        _geofenceEditorState.value = current.copy(isVibrationEnabled = enabled)
+    }
+
     fun addVertex(latitude: Double, longitude: Double) {
         val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        if (current.shapeType == GeoFenceType.CIRCLE) {
+            setCircleCenter(latitude, longitude)
+            return
+        }
+        // Suppress accidental duplicate/stacked vertices tapped within 8 meters of an existing vertex
+        val isNearExistingVertex = current.vertices.any { v ->
+            DistanceCalculator.calculateDistanceMeters(latitude, longitude, v.latitude, v.longitude) < 8.0
+        }
+        if (isNearExistingVertex) return
+
         val updatedVertices = current.vertices + GeoPoint2D(latitude, longitude)
         _geofenceEditorState.value = current.copy(vertices = updatedVertices, validationError = null)
     }
 
     fun updateVertex(index: Int, latitude: Double, longitude: Double) {
         val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        if (current.shapeType == GeoFenceType.CIRCLE) {
+            setCircleCenter(latitude, longitude)
+            return
+        }
         if (index in current.vertices.indices) {
             val updatedVertices = current.vertices.toMutableList()
             updatedVertices[index] = GeoPoint2D(latitude, longitude)
@@ -236,6 +358,10 @@ class MapViewModel(
 
     fun undoLastVertex() {
         val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
+        if (current.shapeType == GeoFenceType.CIRCLE) {
+            _geofenceEditorState.value = current.copy(center = null)
+            return
+        }
         if (current.vertices.isNotEmpty()) {
             _geofenceEditorState.value = current.copy(vertices = current.vertices.dropLast(1))
         }
@@ -243,7 +369,7 @@ class MapViewModel(
 
     fun clearVertices() {
         val current = _geofenceEditorState.value as? GeofenceEditorState.Editing ?: return
-        _geofenceEditorState.value = current.copy(vertices = emptyList())
+        _geofenceEditorState.value = current.copy(vertices = emptyList(), center = null)
     }
 
     fun onMapLongClick(latitude: Double, longitude: Double) {
@@ -256,19 +382,26 @@ class MapViewModel(
                 geoFenceRepository.getGeoFences()
             }
 
-            // Mathematical Ray-Casting Point-in-Polygon detection
             val hitFence = fences.find { fence ->
-                fence.vertices.size >= 3 && isPointInPolygon(latitude, longitude, fence.vertices)
+                when (fence.type) {
+                    GeoFenceType.CIRCLE -> {
+                        val center = fence.center
+                        val radius = fence.radiusMeters
+                        if (center != null && radius != null && radius > 0.0) {
+                            DistanceCalculator.calculateDistanceMeters(
+                                latitude, longitude,
+                                center.latitude, center.longitude
+                            ) <= radius
+                        } else false
+                    }
+                    GeoFenceType.POLYGON -> {
+                        fence.vertices.size >= 3 && isPointInPolygon(latitude, longitude, fence.vertices)
+                    }
+                }
             }
 
             if (hitFence != null) {
-                _geofenceEditorState.value = GeofenceEditorState.Editing(
-                    id = hitFence.id,
-                    name = hitFence.name,
-                    vertices = hitFence.vertices,
-                    colorArgb = hitFence.colorArgb,
-                    isEnabled = hitFence.isEnabled
-                )
+                startEditingGeofence(hitFence)
             }
         }
     }
@@ -296,23 +429,68 @@ class MapViewModel(
             _geofenceEditorState.value = current.copy(validationError = "Please enter a zone name")
             return
         }
-        if (current.vertices.size < 3) {
-            _geofenceEditorState.value = current.copy(validationError = "A polygon requires at least 3 vertices")
-            return
-        }
 
-        val fence = GeoFence(
-            id = current.id ?: UUID.randomUUID().toString(),
-            name = current.name.trim(),
-            vertices = current.vertices,
-            colorArgb = current.colorArgb,
-            isEnabled = current.isEnabled
-        )
+        val fence = when (current.shapeType) {
+            GeoFenceType.POLYGON -> {
+                if (current.vertices.size < 3) {
+                    _geofenceEditorState.value = current.copy(validationError = "A polygon requires at least 3 vertices")
+                    return
+                }
+                GeoFence.createPolygon(
+                    id = current.id ?: UUID.randomUUID().toString(),
+                    name = current.name.trim(),
+                    vertices = current.vertices,
+                    colorArgb = current.colorArgb,
+                    isEnabled = current.isEnabled,
+                    triggerRule = current.triggerRule,
+                    soundProfile = current.soundProfile,
+                    durationSeconds = current.durationSeconds,
+                    targetDeviceId = current.targetDeviceId,
+                    isVibrationEnabled = current.isVibrationEnabled
+                )
+            }
+            GeoFenceType.CIRCLE -> {
+                val center = current.center
+                if (center == null) {
+                    _geofenceEditorState.value = current.copy(validationError = "Please tap on the map to set the circle center")
+                    return
+                }
+                if (current.radiusMeters <= 0.0 || !current.radiusMeters.isFinite()) {
+                    _geofenceEditorState.value = current.copy(validationError = "Please specify a positive radius")
+                    return
+                }
+                GeoFence.createCircle(
+                    id = current.id ?: UUID.randomUUID().toString(),
+                    name = current.name.trim(),
+                    center = center,
+                    radiusMeters = current.radiusMeters,
+                    colorArgb = current.colorArgb,
+                    isEnabled = current.isEnabled,
+                    triggerRule = current.triggerRule,
+                    soundProfile = current.soundProfile,
+                    durationSeconds = current.durationSeconds,
+                    targetDeviceId = current.targetDeviceId,
+                    isVibrationEnabled = current.isVibrationEnabled
+                )
+            }
+        }
 
         viewModelScope.launch {
             geoFenceRepository.addGeoFence(fence)
             _geoFencesRefreshTrigger.value++
             _geofenceEditorState.value = GeofenceEditorState.ListMode
+
+            // Re-evaluate fence against all active device locations immediately
+            try {
+                val locRepo = trackerLocationRepository
+                val evalUseCase = evaluateGeoFencesUseCase
+                if (locRepo != null && evalUseCase != null) {
+                    val currentLocations = locRepo.getAllLocations().first()
+                    for (loc in currentLocations) {
+                        evalUseCase(loc)
+                    }
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -334,201 +512,10 @@ class MapViewModel(
         }
     }
 
-    // ==========================================
-    // DEVELOPER DEBUG CONTROLS
-    // ==========================================
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val unacknowledgedAlerts: StateFlow<List<Alert>> = alertRepository?.let { repo ->
-        flow {
-            while (true) {
-                emit(repo.getUnacknowledgedAlerts())
-                delay(1500L)
-            }
-        }.stateIn(
+    val unacknowledgedAlerts: StateFlow<List<Alert>> = alertRepository?.observeUnacknowledgedAlerts()
+        ?.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
-        )
-    } ?: MutableStateFlow<List<Alert>>(emptyList()).asStateFlow()
-
-    fun debugAddDevice(
-        id: String,
-        displayName: String,
-        model: String,
-        lat: Double,
-        lon: Double,
-        battery: Int = 90,
-        speed: Float = 0f,
-        bearing: Float? = 0f,
-        connectionState: ConnectionState = ConnectionState.CONNECTED
-    ) {
-        viewModelScope.launch {
-            val trackerId = TrackerId(id.trim().ifEmpty { "dev_${(System.currentTimeMillis() % 10000)}" })
-            val now = System.currentTimeMillis()
-            val device = TrackerDevice(
-                deviceId = trackerId,
-                displayName = displayName.trim().ifEmpty { "Tracker ${trackerId.value}" },
-                deviceModel = model.trim().ifEmpty { "Virtual Tracker" },
-                registrationTimestamp = now,
-                lastSeenTimestamp = now,
-                connectionState = connectionState,
-                batteryLevel = battery,
-                networkState = if (connectionState == ConnectionState.CONNECTED) "Virtual Link" else null
-            )
-            trackerDeviceRepository?.registerDevice(device)
-            val location = Location(
-                deviceId = trackerId,
-                latitude = lat,
-                longitude = lon,
-                accuracy = 8f,
-                bearing = bearing,
-                speed = speed,
-                timestamp = now,
-                state = if (connectionState == ConnectionState.CONNECTED) LocationState.LIVE else LocationState.OFFLINE
-            )
-            trackerLocationRepository?.updateLocation(location)
-            evaluateGeoFencesUseCase?.invoke(location)
-        }
-    }
-
-    fun debugMoveDevice(
-        deviceId: TrackerId,
-        newLat: Double,
-        newLon: Double,
-        speed: Float = 15f,
-        bearing: Float? = null
-    ) {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val location = Location(
-                deviceId = deviceId,
-                latitude = newLat,
-                longitude = newLon,
-                accuracy = 6f,
-                bearing = bearing,
-                speed = speed,
-                timestamp = now,
-                state = LocationState.LIVE
-            )
-            trackerLocationRepository?.updateLocation(location)
-            trackerDeviceRepository?.updateDevice(deviceId) {
-                it.copy(lastSeenTimestamp = now, connectionState = ConnectionState.CONNECTED)
-            }
-            evaluateGeoFencesUseCase?.invoke(location)
-        }
-    }
-
-    fun debugStepDevice(
-        deviceId: TrackerId,
-        deltaLat: Double,
-        deltaLon: Double,
-        stepSpeed: Float = 15f
-    ) {
-        viewModelScope.launch {
-            val currentLocation = trackerLocationRepository?.getLocation(deviceId)?.first()
-            val currentLat = currentLocation?.latitude ?: return@launch
-            val currentLon = currentLocation?.longitude ?: return@launch
-            val newLat = currentLat + deltaLat
-            val newLon = currentLon + deltaLon
-            val bearing = when {
-                deltaLat > 0 && deltaLon == 0.0 -> 0f   // North
-                deltaLat < 0 && deltaLon == 0.0 -> 180f // South
-                deltaLon > 0 && deltaLat == 0.0 -> 90f  // East
-                deltaLon < 0 && deltaLat == 0.0 -> 270f // West
-                else -> currentLocation.bearing
-            }
-            debugMoveDevice(deviceId, newLat, newLon, stepSpeed, bearing)
-        }
-    }
-
-    fun debugTeleportInsideGeofence(deviceId: TrackerId, geofence: GeoFence) {
-        viewModelScope.launch {
-            if (geofence.vertices.isEmpty()) return@launch
-            val centerLat = geofence.vertices.map { it.latitude }.average()
-            val centerLon = geofence.vertices.map { it.longitude }.average()
-            debugMoveDevice(deviceId, centerLat, centerLon, speed = 20f, bearing = 45f)
-        }
-    }
-
-    fun debugTeleportOutsideGeofence(deviceId: TrackerId, geofence: GeoFence) {
-        viewModelScope.launch {
-            if (geofence.vertices.isEmpty()) return@launch
-            val maxLat = geofence.vertices.maxOf { it.latitude }
-            val centerLon = geofence.vertices.map { it.longitude }.average()
-            debugMoveDevice(deviceId, maxLat + 0.008, centerLon, speed = 35f, bearing = 0f)
-        }
-    }
-
-    fun debugToggleDeviceConnection(deviceId: TrackerId) {
-        viewModelScope.launch {
-            val current = trackerDeviceRepository?.getDevice(deviceId) ?: return@launch
-            val newState = if (current.connectionState == ConnectionState.CONNECTED) {
-                ConnectionState.DISCONNECTED
-            } else {
-                ConnectionState.CONNECTED
-            }
-            trackerDeviceRepository?.updateDevice(deviceId) {
-                it.copy(connectionState = newState, lastSeenTimestamp = System.currentTimeMillis())
-            }
-        }
-    }
-
-    fun debugRemoveDevice(deviceId: TrackerId) {
-        viewModelScope.launch {
-            trackerDeviceRepository?.unregisterDevice(deviceId)
-            trackerLocationRepository?.clearLocation(deviceId)
-            if (selectedMarker.value?.deviceId == deviceId) {
-                selectMarker(null)
-            }
-        }
-    }
-
-    fun debugClearAllDevices() {
-        viewModelScope.launch {
-            val all = trackerDeviceRepository?.getAllDevices() ?: emptyList()
-            all.forEach { dev ->
-                trackerDeviceRepository?.unregisterDevice(dev.deviceId)
-                trackerLocationRepository?.clearLocation(dev.deviceId)
-            }
-            selectMarker(null)
-        }
-    }
-
-    fun debugSpawnPresetFleet() {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val presets = listOf(
-                Triple("alpha_van", "Alpha Van (Inside Safe Zone)", Pair(40.7125, -74.0060)),
-                Triple("bravo_courier", "Bravo Courier (Inside NYU)", Pair(40.7300, -73.9870)),
-                Triple("charlie_patrol", "Charlie Patrol (Outside Perimeter)", Pair(40.7600, -73.9750))
-            )
-            presets.forEachIndexed { index, (id, name, coords) ->
-                val trackerId = TrackerId(id)
-                val device = TrackerDevice(
-                    deviceId = trackerId,
-                    displayName = name,
-                    deviceModel = if (index == 0) "Pixel 8 Pro" else if (index == 1) "Galaxy S24" else "OBD Tracker",
-                    registrationTimestamp = now,
-                    lastSeenTimestamp = now,
-                    connectionState = ConnectionState.CONNECTED,
-                    batteryLevel = 95 - (index * 15),
-                    networkState = "Cellular 5G"
-                )
-                trackerDeviceRepository?.registerDevice(device)
-                val location = Location(
-                    deviceId = trackerId,
-                    latitude = coords.first,
-                    longitude = coords.second,
-                    accuracy = 8f,
-                    bearing = (index * 90f),
-                    speed = (index * 12f),
-                    timestamp = now,
-                    state = LocationState.LIVE
-                )
-                trackerLocationRepository?.updateLocation(location)
-                evaluateGeoFencesUseCase?.invoke(location)
-            }
-        }
-    }
+        ) ?: MutableStateFlow<List<Alert>>(emptyList()).asStateFlow()
 }

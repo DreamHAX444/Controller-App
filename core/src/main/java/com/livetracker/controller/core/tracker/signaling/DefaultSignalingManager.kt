@@ -20,23 +20,6 @@ class DefaultSignalingManager(
 ) : SignalingManager {
 
     private val sessions = mutableMapOf<TrackerId, DefaultSignalingSession>()
-    private val mutex = Mutex()
-    private var observeJob: Job? = null
-
-    init {
-        startObserving()
-    }
-
-    private fun startObserving() {
-        observeJob = scope.launch {
-            // Note: If transport can only observe per session, we would observe inside the session.
-            // But if it's a global transport, it would expose a global flow.
-            // Since our SignalingTransport interface has `receiveMessages(sessionId)`, 
-            // the transport handles per-session streams. But wait, if the transport uses a single WebSocket, 
-            // how does it receive messages for sessions? It receives all and filters.
-            // Let's assume the session itself will call transport.receiveMessages(sessionId).
-        }
-    }
 
     override fun createSession(trackerId: TrackerId, sessionId: String): SignalingSession {
         // We need runBlocking or just lock in a synchronized block because of mutable map?
@@ -80,7 +63,6 @@ class DefaultSignalingManager(
             list
         }
         all.forEach { it.internalStop() }
-        observeJob?.cancel()
     }
 
     private fun removeSession(trackerId: TrackerId, sessionId: String) {

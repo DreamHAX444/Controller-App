@@ -1,8 +1,14 @@
 package com.livetracker.controller.core.auth.domain.repository
 
 import com.livetracker.controller.core.auth.domain.*
+import kotlinx.coroutines.flow.asStateFlow
 
 // TEST INFRASTRUCTURE ONLY
+interface UserRepository {
+    suspend fun getUser(userId: String): Result<User>
+    suspend fun getCurrentUser(): Result<User>
+}
+
 class FakeUserRepository : UserRepository {
     private val users = mutableMapOf<String, User>()
     private var currentUserId: String? = null
@@ -27,20 +33,28 @@ class FakeUserRepository : UserRepository {
 }
 
 class FakeSessionRepository : SessionRepository {
-    private var activeSession: Session? = null
+    private val _activeSession = kotlinx.coroutines.flow.MutableStateFlow<Session?>(null)
+
+    override fun observeActiveSession(): kotlinx.coroutines.flow.Flow<Session?> = _activeSession.asStateFlow()
 
     override suspend fun createSession(session: Session): Result<Unit> {
-        activeSession = session
+        _activeSession.value = session
         return Result.success(Unit)
     }
 
     override suspend fun getActiveSession(): Result<Session> {
-        val session = activeSession
+        val session = _activeSession.value
         return if (session != null) Result.success(session) else Result.failure(Exception("No active session"))
     }
 
+    override suspend fun updateSessionUser(user: User): Result<Unit> {
+        val current = _activeSession.value ?: return Result.failure(IllegalStateException("No active session"))
+        _activeSession.value = current.copy(user = user)
+        return Result.success(Unit)
+    }
+
     override suspend fun invalidateSession(): Result<Unit> {
-        activeSession = null
+        _activeSession.value = null
         return Result.success(Unit)
     }
 }
@@ -64,6 +78,7 @@ class FakeAuthenticationRepository(
         return when (user.accountStatus) {
             AccountStatus.DISABLED -> AuthenticationResult.AccountDisabled
             AccountStatus.SUSPENDED -> AuthenticationResult.AccountSuspended
+            AccountStatus.PENDING -> AuthenticationResult.AccountPending
             AccountStatus.UNKNOWN -> AuthenticationResult.InvalidCredentials
             AccountStatus.ACTIVE -> {
                 val session = Session(

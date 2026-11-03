@@ -17,13 +17,50 @@ class EvaluateGeoFencesUseCase(
         if (geoFences.isEmpty()) return
 
         for (geoFence in geoFences) {
-            val isInside = isPointInPolygon(location.latitude, location.longitude, geoFence.vertices)
+            // Device target filtering: if targetDeviceId is set, only evaluate for that device
+            if (geoFence.targetDeviceId != null && geoFence.targetDeviceId != deviceId) {
+                continue
+            }
+
+            val isInside = when (geoFence.type) {
+                GeoFenceType.CIRCLE -> {
+                    val center = geoFence.center
+                    val radius = geoFence.radiusMeters
+                    if (center != null && radius != null && radius > 0.0) {
+                        val distance = DistanceCalculator.calculateDistanceMeters(
+                            lat1 = location.latitude,
+                            lon1 = location.longitude,
+                            lat2 = center.latitude,
+                            lon2 = center.longitude
+                        )
+                        distance <= radius
+                    } else {
+                        false
+                    }
+                }
+                GeoFenceType.POLYGON -> {
+                    isPointInPolygon(location.latitude, location.longitude, geoFence.vertices)
+                }
+            }
             
             val currentState = if (isInside) GeoFenceState.INSIDE else GeoFenceState.OUTSIDE
             val previousState = geoFenceStateRepository.getState(deviceId, geoFence.id)
 
-            if (currentState != previousState && previousState != GeoFenceState.UNKNOWN) {
-                // State changed
+            val shouldTrigger = when {
+                previousState == GeoFenceState.UNKNOWN -> {
+                    currentState == GeoFenceState.INSIDE &&
+                            (geoFence.triggerRule == GeofenceTriggerRule.ENTRY || geoFence.triggerRule == GeofenceTriggerRule.BOTH)
+                }
+                currentState == GeoFenceState.INSIDE && previousState == GeoFenceState.OUTSIDE -> {
+                    geoFence.triggerRule == GeofenceTriggerRule.ENTRY || geoFence.triggerRule == GeofenceTriggerRule.BOTH
+                }
+                currentState == GeoFenceState.OUTSIDE && previousState == GeoFenceState.INSIDE -> {
+                    geoFence.triggerRule == GeofenceTriggerRule.EXIT || geoFence.triggerRule == GeofenceTriggerRule.BOTH
+                }
+                else -> false
+            }
+
+            if (shouldTrigger) {
                 val alertType = if (currentState == GeoFenceState.INSIDE) AlertType.GEOFENCE_ENTER else AlertType.GEOFENCE_EXIT
                 val action = if (currentState == GeoFenceState.INSIDE) "entered" else "exited"
                 val message = "Device has $action geo-fence: ${geoFence.name}"
@@ -34,7 +71,12 @@ class EvaluateGeoFencesUseCase(
                         deviceId = deviceId,
                         type = alertType,
                         message = message,
-                        timestamp = location.timestamp
+                        timestamp = location.timestamp,
+                        geofenceId = geoFence.id,
+                        geofenceName = geoFence.name,
+                        soundProfile = geoFence.soundProfile.name,
+                        durationSeconds = geoFence.durationSeconds,
+                        isVibrationEnabled = geoFence.isVibrationEnabled
                     )
                 )
             }

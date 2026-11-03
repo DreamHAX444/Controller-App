@@ -16,9 +16,14 @@ class AndroidWebRtcSessionFactory(
     private val scope: CoroutineScope
 ) : WebRtcSessionFactory {
     
-    private val eglBaseContext: EglBase.Context by lazy {
-        EglBase.create().eglBaseContext
+    companion object {
+        val sharedEglBase: EglBase by lazy {
+            EglBase.create()
+        }
     }
+    
+    private val eglBaseContext: EglBase.Context
+        get() = sharedEglBase.eglBaseContext
     
     private val factory: PeerConnectionFactory by lazy {
         PeerConnectionFactory.initialize(

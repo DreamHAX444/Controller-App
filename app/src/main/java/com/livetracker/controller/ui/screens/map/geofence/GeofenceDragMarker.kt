@@ -17,18 +17,27 @@ class GeofenceDragMarker(
 
     private var isDragging = false
 
+    /**
+     * Density-aware hit test: checks if screen coordinates fall within the expanded touch target.
+     * Uses a 40dp radius (80dp diameter), comfortably exceeding the Android 48dp touch minimum.
+     */
+    fun isWithinHitTarget(screenX: Float, screenY: Float, mapView: MapView): Boolean {
+        if (!isEnabled) return false
+        val point = mapView.projection.toPixels(this.position, null)
+        val deltaX = point.x - screenX
+        val deltaY = point.y - screenY
+        val distance = sqrt((deltaX * deltaX + deltaY * deltaY).toDouble())
+        val density = mapView.context.resources.displayMetrics.density
+        val hitThresholdPx = 40.0 * density
+        return distance <= hitThresholdPx
+    }
+
     override fun onTouchEvent(event: MotionEvent, mapView: MapView): Boolean {
         if (!isEnabled) return false
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                val point = mapView.projection.toPixels(this.position, null)
-                val deltaX = point.x - event.x
-                val deltaY = point.y - event.y
-                val distance = sqrt((deltaX * deltaX + deltaY * deltaY).toDouble())
-
-                // Generous 80px (~26-30dp) touch hitbox for comfortable finger grabbing
-                if (distance < 80.0) {
+                if (isWithinHitTarget(event.x, event.y, mapView)) {
                     isDragging = true
                     mapView.parent.requestDisallowInterceptTouchEvent(true)
                     return true

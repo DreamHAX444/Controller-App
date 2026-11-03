@@ -33,7 +33,11 @@ class EncryptedPreferencesStorage(context: Context) : SecureStorage {
     }
 
     override fun putString(key: String, value: String?) {
-        sharedPreferences.edit().putString(key, value).apply()
+        if (value == null) {
+            sharedPreferences.edit().remove(key).apply()
+        } else {
+            sharedPreferences.edit().putString(key, value).apply()
+        }
     }
 
     override fun getInt(key: String, defaultValue: Int): Int {

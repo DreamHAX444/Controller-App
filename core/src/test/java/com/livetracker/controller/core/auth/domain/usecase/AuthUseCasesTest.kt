@@ -171,4 +171,61 @@ class AuthUseCasesTest {
         val state = restoreSessionUseCase()
         assertTrue(state is AuthenticationState.AccountDisabled)
     }
+
+    @Test
+    fun `pending account returns AccountPending and blocks session creation`() = runBlocking {
+        val pendingUser = User(id = "pending-1", displayName = "Pending", role = Role.USER, accountStatus = AccountStatus.PENDING, devicePermissions = emptyList(), createdAt = mockCurrentTime, updatedAt = mockCurrentTime)
+        userRepository.addUser(pendingUser)
+
+        val result = authenticateUserUseCase("pending-1")
+        assertEquals(AuthenticationResult.AccountPending, result)
+
+        val repoSession = sessionRepository.getActiveSession().getOrNull()
+        assertNull(repoSession)
+    }
+
+    @Test
+    fun `authentication across all roles returns Success with corresponding role`() = runBlocking {
+        val roles = listOf(Role.OWNER, Role.ADMIN, Role.USER, Role.VISITOR)
+        for (r in roles) {
+            val uId = "user-${r.name.lowercase()}"
+            val user = User(id = uId, displayName = "Name ${r.name}", role = r, accountStatus = AccountStatus.ACTIVE, devicePermissions = emptyList(), createdAt = mockCurrentTime, updatedAt = mockCurrentTime)
+            userRepository.addUser(user)
+
+            val result = authenticateUserUseCase(uId)
+            assertTrue(result is AuthenticationResult.Success)
+            val session = (result as AuthenticationResult.Success).session
+            assertEquals(r, session.user.role)
+            assertEquals(uId, session.user.id)
+            assertTrue(session.isAuthenticated)
+        }
+    }
+
+    @Test
+    fun `restoreSession handles pending account`() = runBlocking {
+        val pendingUser = User(id = "pending-user", displayName = "Pending", role = Role.USER, accountStatus = AccountStatus.PENDING, devicePermissions = emptyList(), createdAt = mockCurrentTime, updatedAt = mockCurrentTime)
+        userRepository.addUser(pendingUser)
+        credentialStore.storeSecureToken("pending-user")
+
+        val state = restoreSessionUseCase()
+        assertEquals(AuthenticationState.AccountPending, state)
+    }
+
+    @Test
+    fun `restoreSession handles suspended account`() = runBlocking {
+        val suspendedUser = User(id = "suspended-user", displayName = "Suspended", role = Role.USER, accountStatus = AccountStatus.SUSPENDED, devicePermissions = emptyList(), createdAt = mockCurrentTime, updatedAt = mockCurrentTime)
+        userRepository.addUser(suspendedUser)
+        credentialStore.storeSecureToken("suspended-user")
+
+        val state = restoreSessionUseCase()
+        assertEquals(AuthenticationState.AccountSuspended, state)
+    }
+
+    @Test
+    fun `restoreSession handles unavailable service`() = runBlocking {
+        credentialStore.storeSecureToken("unavailable")
+
+        val state = restoreSessionUseCase()
+        assertEquals(AuthenticationState.AuthenticationUnavailable, state)
+    }
 }

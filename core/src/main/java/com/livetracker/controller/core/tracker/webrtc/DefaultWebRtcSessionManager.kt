@@ -17,9 +17,13 @@ class DefaultWebRtcSessionManager(
         sessionId: String,
         configuration: WebRtcConfiguration
     ): WebRtcSession {
-        return sessions.getOrPut(trackerId) {
-            factory.createSession(trackerId, sessionId, configuration)
-        }
+        return sessions.compute(trackerId) { _, existing ->
+            if (existing != null && existing.state.value != WebRtcState.CLOSED && existing.state.value != WebRtcState.FAILED) {
+                existing
+            } else {
+                factory.createSession(trackerId, sessionId, configuration)
+            }
+        }!!
     }
 
     override fun removeSession(trackerId: TrackerId) {
