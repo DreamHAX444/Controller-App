@@ -8,6 +8,15 @@ Continuous log of changes, tasks, decisions, and progress for the Controller App
 - **Status**: **COMPLETE, VERIFIED & SIGNED (V1 & V2 APK SIGNER PASS, 100% SUCCESSFUL)**
 - **Next Phase / Step**: Production Distribution / GitHub Release Publish
 
+## 2026-11-03 - Repository Cleanup & Bloat Elimination
+- **User Request**: "এখন দেখো আমার কোডবেসে কোনো অতিরিক্ত ফাইল আছে কি না যেগুলোর দরকার নাই। তারপর ওগুলো ক্লিন আপ করে আবার গিটহাব কমিট অ্যান্ড গিটহাব পুশ করো।"
+- **Actions Executed**:
+  1. Identified and removed `supabase/migrations/rollback_permission_core_20261102000002.sql` (a pre-migration raw backup file that would corrupt Supabase migration sequences on reset/push).
+  2. Untracked `.vscode/settings.json` (machine-specific IDE settings with hardcoded absolute system paths, covered by `.gitignore`).
+  3. Removed obsolete scratch files: `scripts/dev_command_gateway.ts` (deprecated PC relay script superseded by autonomous app crypto signing) and `scripts/test_canonical.ts` (one-off scratch test).
+  4. Purged root crash dump `hs_err_pid3972.log` (250 KB JVM log).
+  5. Verified and cleanly committed changes to GitHub.
+
 ## 2026-11-03 - Production Release Build & Signing Verification (v0.2.0)
 - **Objective**: Build and cryptographically verify a production-ready, signed release APK containing all modernization phases (native session persistence, instant Visitor demo mode, live RBAC permissions matrix, live audit logs, and owner user deletion).
 - **Execution & Deliverables**:
