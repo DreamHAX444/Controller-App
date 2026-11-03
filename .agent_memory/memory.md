@@ -8,6 +8,12 @@ Continuous log of changes, tasks, decisions, and progress for the Controller App
 - **Status**: **COMPLETE, VERIFIED & SIGNED (V1 & V2 APK SIGNER PASS, 100% SUCCESSFUL)**
 - **Next Phase / Step**: Production Distribution / GitHub Release Publish
 
+## 2026-11-03 - Cross-Platform Gradle Build Fix (`gradle.properties`)
+- **Issue**: Build failed on Linux/container environment with `Value 'C:/Program Files/Android/Android Studio/jbr' given for org.gradle.java.home Gradle property is invalid`.
+- **Action Executed**:
+  1. Removed machine-specific Windows `org.gradle.java.home=C:/Program Files/Android/Android Studio/jbr` from `gradle.properties` so Gradle resolves the environment JDK automatically.
+  2. Verified `:app:assembleDebug` completes cleanly (`BUILD SUCCESSFUL`).
+
 ## 2026-11-03 - Repository Cleanup & Bloat Elimination
 - **User Request**: "এখন দেখো আমার কোডবেসে কোনো অতিরিক্ত ফাইল আছে কি না যেগুলোর দরকার নাই। তারপর ওগুলো ক্লিন আপ করে আবার গিটহাব কমিট অ্যান্ড গিটহাব পুশ করো।"
 - **Actions Executed**:
