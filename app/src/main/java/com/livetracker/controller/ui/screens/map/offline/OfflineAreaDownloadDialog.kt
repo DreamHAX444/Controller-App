@@ -461,7 +461,7 @@ fun OfflineAreaDownloadDialog(
                         if (isOverLimit) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
-                                contentDescription = null,
+                                contentDescription = "Warning",
                                 tint = Color(0xFFEF4444),
                                 modifier = Modifier.size(14.dp)
                             )
@@ -741,7 +741,7 @@ fun OfflineAreaDownloadDialog(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
-                                    contentDescription = null,
+                                    contentDescription = "Edit region name",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     modifier = Modifier.size(13.dp)
                                 )
@@ -826,7 +826,7 @@ fun OfflineAreaDownloadDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
-                                contentDescription = null,
+                                contentDescription = "Download area",
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))

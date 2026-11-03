@@ -242,7 +242,7 @@ fun DeviceSelectionSheet(
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.Place,
-                                        contentDescription = null,
+                                        contentDescription = "All trackers icon",
                                         tint = if (isAllSelected) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(13.dp)

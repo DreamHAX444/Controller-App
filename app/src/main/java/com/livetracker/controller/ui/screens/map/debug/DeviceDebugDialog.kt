@@ -161,7 +161,7 @@ fun DeviceDebugDialog(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Build,
-                                    contentDescription = null,
+                                    contentDescription = "Debug tools",
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -214,7 +214,7 @@ fun DeviceDebugDialog(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
+                                    contentDescription = "Warning",
                                     tint = Color(0xFFD32F2F),
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -448,7 +448,7 @@ private fun AddTrackerTab(
             ) {
                 Text("Initial Coordinates:", style = MaterialTheme.typography.labelMedium)
                 OutlinedButton(onClick = onUseMapCenter) {
-                    Icon(imageVector = Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Icon(imageVector = Icons.Default.MyLocation, contentDescription = "Use map center", modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Use Map Center", style = MaterialTheme.typography.labelSmall)
                 }
@@ -525,7 +525,7 @@ private fun AddTrackerTab(
                     .height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add")
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Add Tracker to Map", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             }
@@ -561,7 +561,7 @@ private fun MoveAndTestTab(
         ) {
             Icon(
                 imageVector = Icons.Default.LocationOn,
-                contentDescription = null,
+                contentDescription = "Location",
                 tint = MaterialTheme.colorScheme.outlineVariant,
                 modifier = Modifier.size(56.dp)
             )
@@ -579,7 +579,7 @@ private fun MoveAndTestTab(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = onSwitchToAdd) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add")
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Add Device Now")
             }
@@ -676,7 +676,7 @@ private fun MoveAndTestTab(
                             onClick = onFocusOnMap,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(imageVector = Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Icon(imageVector = Icons.Default.MyLocation, contentDescription = "Use map center", modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Focus on Map", style = MaterialTheme.typography.labelSmall)
                         }
@@ -868,7 +868,7 @@ private fun PresetsTab(
             onClick = onSpawnFleet,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = null)
+            Icon(imageVector = Icons.Default.Add, contentDescription = "Add")
             Spacer(modifier = Modifier.width(8.dp))
             Text("Spawn 3 Test Trackers (Fleet Preset)")
         }
@@ -882,7 +882,7 @@ private fun PresetsTab(
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(imageVector = Icons.Default.Delete, contentDescription = null)
+            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete")
             Spacer(modifier = Modifier.width(8.dp))
             Text("Clear All Virtual Trackers")
         }

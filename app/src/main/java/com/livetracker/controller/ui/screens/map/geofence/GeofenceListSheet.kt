@@ -113,7 +113,7 @@ fun GeofenceListSheet(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Shield,
-                                contentDescription = null,
+                                contentDescription = "Geofence icon",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -155,7 +155,7 @@ fun GeofenceListSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = null,
+                                contentDescription = "Add new geofence",
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -202,7 +202,7 @@ fun GeofenceListSheet(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Shield,
-                                    contentDescription = null,
+                                    contentDescription = "No geofences icon",
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(26.dp)
                                 )
@@ -237,7 +237,7 @@ fun GeofenceListSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = null,
+                                contentDescription = "Add new geofence",
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -301,7 +301,7 @@ private fun GeofenceRowItem(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.Shield,
-                        contentDescription = null,
+                        contentDescription = "Geofence zone",
                         tint = Color(fence.colorArgb),
                         modifier = Modifier.size(18.dp)
                     )

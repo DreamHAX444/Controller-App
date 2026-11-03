@@ -52,7 +52,7 @@ fun AlertsScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
-                        contentDescription = null,
+                        contentDescription = "Notifications",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.size(48.dp)
                     )
@@ -118,7 +118,7 @@ fun AlertItem(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
+                contentDescription = "Alert icon",
                 tint = iconTint,
                 modifier = Modifier.size(24.dp)
             )

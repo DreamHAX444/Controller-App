@@ -310,7 +310,7 @@ private fun IdleUpdateCard(onCheck: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
-                contentDescription = null,
+                contentDescription = "Checking for updates",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(36.dp)
             )
@@ -406,7 +406,7 @@ private fun UpToDateCard(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Check Again")
             }
@@ -747,7 +747,7 @@ private fun AwaitingConfirmationCard() {
         ) {
             Icon(
                 imageVector = Icons.Default.Info,
-                contentDescription = null,
+                contentDescription = "Info",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(36.dp)
             )
@@ -805,7 +805,7 @@ private fun InstalledCard(
         ) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = null,
+                contentDescription = "Success",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(36.dp)
             )
@@ -849,7 +849,7 @@ private fun FailedCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Warning,
-                    contentDescription = null,
+                    contentDescription = "Warning",
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(24.dp)
                 )
