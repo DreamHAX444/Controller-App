@@ -8,6 +8,13 @@ Continuous log of changes, tasks, decisions, and progress for the Controller App
 - **Status**: **COMPLETE, VERIFIED & SIGNED (V1 & V2 APK SIGNER PASS, 100% SUCCESSFUL)**
 - **Next Phase / Step**: Production Distribution / GitHub Release Publish
 
+## 2026-11-03 - One-Click GitHub Codebase Synchronizer Script (`sync.bat`)
+- **User Request**: "তুমি আমাকে একটা স্ক্রিপ্ট বানায়া দাও যেটা এই কাজটা করবে, যাতে বারবার তোমার থেকে ইয়া নেওয়া, তোমার টোকেন না খরচ হয়।"
+- **Deliverable**:
+  1. Created standalone `sync.bat` script in project root for one-click local-to-remote codebase synchronization.
+  2. Script dynamically detects the active branch, fetches updates from `origin`, resets working tree cleanly to match `origin/<branch>` (`git reset --hard origin/<branch>`), and displays latest commit details and change statistics.
+  3. Supports double-click execution from Windows File Explorer (with clean pause guard) and silent CLI execution (`sync.bat -q`).
+
 ## 2026-11-03 - Cross-Platform Gradle Build Fix (`gradle.properties`)
 - **Issue**: Build failed on Linux/container environment with `Value 'C:/Program Files/Android/Android Studio/jbr' given for org.gradle.java.home Gradle property is invalid`.
 - **Action Executed**:
