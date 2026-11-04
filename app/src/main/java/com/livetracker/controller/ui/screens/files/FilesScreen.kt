@@ -39,14 +39,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.livetracker.controller.core.tracker.files.domain.RemoteFileItem
 import com.livetracker.controller.core.tracker.files.domain.TransferProgress
 import com.livetracker.controller.core.tracker.files.domain.TransferStatus
+import com.livetracker.controller.ui.theme.StatusConnecting
+import com.livetracker.controller.ui.theme.StatusError
+import com.livetracker.controller.ui.theme.StatusLive
+import com.livetracker.controller.ui.theme.StatusOffline
 import com.livetracker.controller.ui.util.DeviceNameFormatter
 import java.io.File
 import java.util.Locale
-
-private val StatusLive = Color(0xFF16A34A)
-private val StatusConnecting = Color(0xFFD97706)
-private val StatusOffline = Color(0xFF64748B)
-private val StatusError = Color(0xFFDC2626)
 
 object FilesTestTags {
     const val SCREEN = "files_screen"
@@ -260,7 +259,7 @@ fun FilesScreen(
                         onClick = { viewModel.navigateUp() },
                         enabled = uiState.currentPath.isNotEmpty() && uiState.currentPath != "/",
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .testTag(FilesTestTags.UP_BUTTON)
                     ) {
                         Icon(
@@ -289,7 +288,7 @@ fun FilesScreen(
 
                     IconButton(
                         onClick = { viewModel.toggleSelectionMode() },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = if (uiState.isSelectionMode) Icons.Default.CheckCircle else Icons.Default.Checklist,
@@ -301,7 +300,7 @@ fun FilesScreen(
                     IconButton(
                         onClick = { viewModel.refreshFiles() },
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .testTag(FilesTestTags.REFRESH_BUTTON)
                     ) {
                         Icon(
@@ -315,7 +314,7 @@ fun FilesScreen(
                     Box {
                         IconButton(
                             onClick = { showLocationMenu = true },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.FolderSpecial,
@@ -380,7 +379,7 @@ fun FilesScreen(
                     ) {
                         IconButton(
                             onClick = { viewModel.clearSelection() },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(Icons.Default.Close, contentDescription = "Exit selection", modifier = Modifier.size(18.dp))
                         }
@@ -393,7 +392,7 @@ fun FilesScreen(
                         )
                         IconButton(
                             onClick = { viewModel.selectAll() },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(Icons.Default.SelectAll, contentDescription = "Select All", modifier = Modifier.size(18.dp))
                         }

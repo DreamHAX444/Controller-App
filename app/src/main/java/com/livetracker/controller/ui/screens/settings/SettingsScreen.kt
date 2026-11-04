@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,15 +52,30 @@ import com.livetracker.controller.ui.screens.map.config.MapStyle
 import com.livetracker.controller.ui.screens.map.config.getSupportedStyles
 import com.livetracker.controller.ui.screens.map.offline.OfflineDownloadState
 import com.livetracker.controller.core.auth.domain.Role
+import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import com.livetracker.controller.core.auth.domain.User
 import com.livetracker.controller.ui.components.UserProfileAvatar
+import com.livetracker.controller.ui.theme.StatusLive
+import com.livetracker.controller.ui.theme.ThemeAccentPreset
+import com.livetracker.controller.ui.theme.ThemeMode
+import com.livetracker.controller.ui.theme.customAccentColors
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier,
-    currentUser: User? = null
+    currentUser: User? = null,
+    onOpenProfile: (() -> Unit)? = null,
+    onOpenMapWithGestureCoach: (() -> Unit)? = null
 ) {
     val mapConfig by viewModel.mapConfiguration.collectAsStateWithLifecycle()
     val cartoApiKey by viewModel.cartoApiKey.collectAsStateWithLifecycle()
@@ -69,6 +85,8 @@ fun SettingsScreen(
     val cacheInfo by viewModel.cacheInfo.collectAsStateWithLifecycle()
     val savedRegions by viewModel.savedRegions.collectAsStateWithLifecycle()
     val isAreaPickerOpen by viewModel.isAreaPickerOpen.collectAsStateWithLifecycle()
+    val themeConfig by viewModel.themeConfiguration.collectAsStateWithLifecycle()
+    var gestureCoachResetTriggered by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     Column(
@@ -78,19 +96,17 @@ fun SettingsScreen(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Section: User Account Profile
-        Text(
-            text = "User Account",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.primary
-        )
-
+        // Section 1: Compact Dedicated Account Profile Link
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .let { mod -> if (onOpenProfile != null) mod.clickable { onOpenProfile() } else mod }
         ) {
             Row(
                 modifier = Modifier
@@ -102,56 +118,313 @@ fun SettingsScreen(
                     avatarUrl = currentUser?.avatarUrl,
                     displayName = currentUser?.displayName ?: "Operator",
                     role = currentUser?.role ?: Role.OWNER,
-                    size = 52.dp
+                    size = 48.dp
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = currentUser?.displayName ?: "Operator",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.5.sp
+                            fontSize = 16.sp
                         ),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = currentUser?.email ?: (if (currentUser != null) "${currentUser.displayName}@trace.local" else "developer@trace.local"),
+                        text = "View account clearance, UID & assigned fleet",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                        ) {
-                            Text(
-                                text = currentUser?.role?.name ?: "OWNER",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                            )
-                        }
+                }
 
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = Color(0xFF1B5E20).copy(alpha = 0.25f),
-                            border = BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.4f))
-                        ) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        text = currentUser?.role?.name ?: "OWNER",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+
+                if (onOpenProfile != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open Profile",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // Section 2: Theme & Custom Color Studio
+        Text(
+            text = "Theme & Color Studio",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Theme Mode Segmented Control (System / Dark / Light)
+                Column {
+                    Text(
+                        text = "Appearance Mode",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ThemeMode.entries.forEach { mode ->
+                            val selected = themeConfig.themeMode == mode
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { viewModel.setThemeMode(mode) },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                },
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                )
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 10.dp)) {
+                                    Text(
+                                        text = mode.label,
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                        ),
+                                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Android 12+ Material You Dynamic System Color Switch
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
-                                text = "ACTIVE",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF4CAF50),
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                text = "System Dynamic Colors",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Adapt accent palette automatically from your device wallpaper (Material You).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Switch(
+                            checked = themeConfig.useDynamicSystemColor,
+                            onCheckedChange = { viewModel.setUseDynamicSystemColor(it) }
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                // Curated Accent Color Presets
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Accent Color Palette",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (themeConfig.useDynamicSystemColor) "Wallpaper Dynamic" else themeConfig.accentPreset.label,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        ThemeAccentPreset.entries.forEach { preset ->
+                            val isSelected = !themeConfig.useDynamicSystemColor && themeConfig.accentPreset == preset
+                            val swatchColor = if (preset == ThemeAccentPreset.CUSTOM) {
+                                customAccentColors(themeConfig.customHueDegrees, isDark = true).first
+                            } else {
+                                preset.primaryDark
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (themeConfig.useDynamicSystemColor) {
+                                            viewModel.setUseDynamicSystemColor(false)
+                                        }
+                                        viewModel.setAccentPreset(preset)
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(40.dp),
+                                    shape = CircleShape,
+                                    color = swatchColor,
+                                    border = BorderStroke(
+                                        width = if (isSelected) 3.dp else 1.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.White.copy(alpha = 0.25f)
+                                    )
+                                ) {
+                                    if (isSelected) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = preset.label,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = preset.label,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 11.sp
+                                    ),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Custom Hue Color Studio Slider (0° - 360°)
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Custom Color Hue Studio",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${themeConfig.customHueDegrees}°",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.hsv(0f, 0.8f, 0.95f),
+                                        Color.hsv(60f, 0.8f, 0.95f),
+                                        Color.hsv(120f, 0.8f, 0.95f),
+                                        Color.hsv(180f, 0.8f, 0.95f),
+                                        Color.hsv(240f, 0.8f, 0.95f),
+                                        Color.hsv(300f, 0.8f, 0.95f),
+                                        Color.hsv(360f, 0.8f, 0.95f)
+                                    )
+                                )
+                            )
+                    )
+                    Slider(
+                        value = themeConfig.customHueDegrees.toFloat(),
+                        onValueChange = { newHue ->
+                            if (themeConfig.useDynamicSystemColor) {
+                                viewModel.setUseDynamicSystemColor(false)
+                            }
+                            viewModel.setCustomHueDegrees(newHue.toInt())
+                        },
+                        valueRange = 0f..360f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+
+                // Interactive Gesture Coach Replay Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "Interactive Gesture Guide",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (gestureCoachResetTriggered) {
+                                "Gesture tutorial armed — open the Map tab to view."
+                            } else {
+                                "Replay the visual guide for Map & Alert swipe gestures."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (gestureCoachResetTriggered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.resetGestureCoach()
+                            gestureCoachResetTriggered = true
+                            onOpenMapWithGestureCoach?.invoke()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.heightIn(min = 40.dp)
+                    ) {
+                        Text("Replay Guide", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -165,7 +438,7 @@ fun SettingsScreen(
         )
 
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -228,7 +501,7 @@ fun SettingsScreen(
         // Section: CARTO API Key Configuration (shown when CARTO is selected)
         if (mapConfig.provider == MapProvider.CARTO) {
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
@@ -290,7 +563,7 @@ fun SettingsScreen(
         )
 
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -345,7 +618,7 @@ fun SettingsScreen(
         )
 
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -384,7 +657,7 @@ fun SettingsScreen(
         )
 
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -567,8 +840,10 @@ fun SettingsScreen(
                     Button(
                         onClick = { viewModel.openAreaPicker() },
                         enabled = offlinePreferences.isOfflineDownloadAllowed && downloadState !is OfflineDownloadState.Downloading,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(text = "Download Area", fontSize = 13.sp)
                     }
@@ -576,8 +851,10 @@ fun SettingsScreen(
                     OutlinedButton(
                         onClick = { viewModel.clearOfflineCache() },
                         enabled = downloadState !is OfflineDownloadState.Downloading,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(text = "Clear Cache", fontSize = 13.sp)
                     }
@@ -648,7 +925,7 @@ fun SettingsScreen(
 
                                 IconButton(
                                     onClick = { viewModel.deleteSavedRegion(region.id) },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(42.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
@@ -685,7 +962,7 @@ fun SettingsScreen(
         )
 
         Card(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),

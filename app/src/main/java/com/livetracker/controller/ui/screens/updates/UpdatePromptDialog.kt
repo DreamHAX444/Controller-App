@@ -106,7 +106,7 @@ fun UpdatePromptDialog(
         confirmButton = {
             Button(
                 onClick = onUpdateNow,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Update Now")
             }
@@ -115,13 +115,13 @@ fun UpdatePromptDialog(
             if (!updateInfo.isMandatory) {
                 OutlinedButton(
                     onClick = onLater,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Later")
                 }
             }
         },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         modifier = modifier
     )
 }

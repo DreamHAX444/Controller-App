@@ -95,12 +95,33 @@ class FleetLifecycleManager(
 
                 // Stage 2: Authoritative registered devices hydration from public.devices
                 val fleetDevices = supabaseFleetManager.fetchFleetDevices()
-                val authorizedIds = fleetDevices.map { it.deviceId }
+                val authorizedIds = if (session.user.role == Role.USER) {
+                    val userAssignedIds = session.user.devicePermissions.map { it.deviceId }.toSet()
+                    if (userAssignedIds.isNotEmpty()) {
+                        fleetDevices.map { it.deviceId }.filter { it in userAssignedIds }
+                    } else {
+                        fleetDevices.map { it.deviceId }
+                    }
+                } else {
+                    fleetDevices.map { it.deviceId }
+                }
                 supabaseFleetManager.setAuthorizedDevices(authorizedIds)
+
+                // Prune any cached devices no longer authorized for this session
+                if (session.user.role == Role.USER) {
+                    val authorizedSet = authorizedIds.toSet()
+                    for (existing in trackerDeviceRepository.getAllDevices()) {
+                        if (existing.deviceId.value !in authorizedSet) {
+                            deviceManager.unregisterDevice(existing.deviceId)
+                            trackerLocationRepository.clearLocation(existing.deviceId)
+                        }
+                    }
+                }
 
                 val nowInit = System.currentTimeMillis()
                 for (devRecord in fleetDevices) {
                     if (!isActive) break
+                    if (session.user.role == Role.USER && devRecord.deviceId !in authorizedIds) continue
                     val trackerId = TrackerId(devRecord.deviceId)
                     if (trackerDeviceRepository.getDevice(trackerId) == null || !trackerSessionManager.hasSession(trackerId)) {
                         deviceManager.registerDevice(trackerId, devRecord.name.ifBlank { devRecord.deviceId })

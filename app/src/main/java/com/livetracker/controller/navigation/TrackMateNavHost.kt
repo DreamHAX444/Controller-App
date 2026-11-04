@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,8 +27,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.livetracker.controller.core.auth.domain.Role
 import com.livetracker.controller.core.auth.domain.ServicePermission
+import com.livetracker.controller.core.auth.domain.User
 import com.livetracker.controller.ui.components.AccessRestrictedScreen
 import com.livetracker.controller.ui.screens.diagnostics.DiagnosticsScreen
 import com.livetracker.controller.ui.screens.diagnostics.DiagnosticsViewModel
@@ -38,6 +42,7 @@ import com.livetracker.controller.ui.screens.camera.CameraScreen
 import com.livetracker.controller.ui.screens.camera.CameraViewModel
 import com.livetracker.controller.ui.screens.map.MapScreen
 import com.livetracker.controller.ui.screens.map.MapViewModel
+import com.livetracker.controller.ui.screens.settings.ProfileScreen
 import com.livetracker.controller.ui.screens.settings.SettingsScreen
 import com.livetracker.controller.ui.screens.settings.SettingsViewModel
 import com.livetracker.controller.ui.screens.updates.UpdatesScreen
@@ -52,6 +57,40 @@ import com.livetracker.controller.ui.screens.files.FilesScreen
 import com.livetracker.controller.ui.screens.files.FilesViewModel
 import com.livetracker.controller.ui.screens.permissions.PermissionsScreen
 import com.livetracker.controller.ui.screens.audit.AuditLogScreen
+
+private fun isRoutePermittedForUser(route: String?, user: User?): Boolean {
+    if (route == null) return true
+    val role = user?.role ?: Role.VISITOR
+    val allowedServices = user?.devicePermissions?.flatMap { it.allowedServices }?.toSet().orEmpty()
+    return when (route) {
+        Destination.Map.route,
+        Destination.Settings.route,
+        Destination.Profile.route -> true
+
+        Destination.Devices.route,
+        Destination.Alerts.route,
+        Destination.Updates.route -> role != Role.VISITOR
+
+        Destination.Diagnostics.route,
+        Destination.Users.route,
+        Destination.Permissions.route,
+        Destination.AuditLog.route -> role == Role.OWNER || role == Role.ADMIN
+
+        Destination.Camera.route -> role == Role.OWNER || role == Role.ADMIN ||
+            (role == Role.USER && ServicePermission.CAMERA in allowedServices)
+
+        Destination.Audio.route -> role == Role.OWNER || role == Role.ADMIN ||
+            (role == Role.USER && (ServicePermission.MICROPHONE_AUDIO in allowedServices || ServicePermission.DEVICE_AUDIO in allowedServices))
+
+        Destination.ScreenCapture.route -> role == Role.OWNER || role == Role.ADMIN ||
+            (role == Role.USER && ServicePermission.SCREEN_CAPTURE in allowedServices)
+
+        Destination.Files.route -> role == Role.OWNER || role == Role.ADMIN ||
+            (role == Role.USER && (ServicePermission.FILE_READ in allowedServices || ServicePermission.FILE_TRANSFER in allowedServices))
+
+        else -> true
+    }
+}
 
 /**
  * Master Navigation Host for Trace Controller.
@@ -68,8 +107,25 @@ fun TrackMateNavHost(
     contentPadding: PaddingValues = PaddingValues(0.dp),
     viewModelFactory: ViewModelProvider.Factory? = null,
     onOpenDrawer: () -> Unit = {},
-    currentUser: com.livetracker.controller.core.auth.domain.User? = null
+    currentUser: com.livetracker.controller.core.auth.domain.User? = null,
+    onLogout: (() -> Unit)? = null
 ) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Live Reactive Route Guard: If a user's role or feature permission is revoked while on a page,
+    // immediately and automatically redirect them to the default Map page.
+    LaunchedEffect(currentUser, currentRoute) {
+        if (currentRoute != null && currentRoute != Destination.Map.route) {
+            if (!isRoutePermittedForUser(currentRoute, currentUser)) {
+                navController.navigate(Destination.Map.route) {
+                    popUpTo(Destination.Map.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Destination.Map.route,
@@ -190,7 +246,17 @@ fun TrackMateNavHost(
     ) {
         // Primary
         composable(Destination.Map.route) {
-            val mapViewModel: MapViewModel = if (viewModelFactory != null) {
+            val context = LocalContext.current
+            val owner = context as? androidx.lifecycle.ViewModelStoreOwner
+            val mapViewModel: MapViewModel = if (owner != null) {
+                remember(owner, viewModelFactory) {
+                    if (viewModelFactory != null) {
+                        ViewModelProvider(owner, viewModelFactory)[MapViewModel::class.java]
+                    } else {
+                        ViewModelProvider(owner)[MapViewModel::class.java]
+                    }
+                }
+            } else if (viewModelFactory != null) {
                 viewModel(factory = viewModelFactory)
             } else {
                 viewModel()
@@ -485,6 +551,34 @@ fun TrackMateNavHost(
             SettingsScreen(
                 viewModel = settingsViewModel,
                 currentUser = currentUser,
+                onOpenProfile = {
+                    navController.navigate(Destination.Profile.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenMapWithGestureCoach = {
+                    navController.navigate(Destination.Map.route) {
+                        launchSingleTop = true
+                    }
+                },
+                modifier = Modifier.padding(contentPadding)
+            )
+        }
+        composable(Destination.Profile.route) {
+            val context = LocalContext.current
+            ProfileScreen(
+                currentUser = currentUser,
+                onRefreshPermissions = {
+                    try {
+                        (context.applicationContext as? com.livetracker.controller.TraceApplication)?.supabaseFleetManager?.reconcileEffectivePermissions()
+                    } catch (_: Exception) {}
+                },
+                onOpenSettings = {
+                    navController.navigate(Destination.Settings.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onLogout = onLogout,
                 modifier = Modifier.padding(contentPadding)
             )
         }

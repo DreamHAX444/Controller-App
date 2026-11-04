@@ -33,9 +33,9 @@ fun AccessRestrictedScreen(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 420.dp)
@@ -86,7 +86,9 @@ fun AccessRestrictedScreen(
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -94,7 +96,7 @@ fun AccessRestrictedScreen(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Return to Map")
+                    Text("Return to Map", fontWeight = FontWeight.SemiBold)
                 }
             }
         }

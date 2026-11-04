@@ -627,6 +627,8 @@ class UsersViewModel(
 
             val permissions = supabaseFleetManager.fetchDeviceFeaturePermissions()
             _permissions.value = permissions
+
+            supabaseFleetManager.reconcileEffectivePermissions()
         } catch (_: Exception) {}
     }
 }

@@ -76,7 +76,7 @@ fun MainShellScreen(
     val isUpdatesScreen = currentDestination?.route == Destination.Updates.route
 
     val allDestinations = remember {
-        primaryDestinations + serviceDestinations + adminDestinations + systemDestinations
+        primaryDestinations + serviceDestinations + adminDestinations + systemDestinations + Destination.Profile
     }
     var currentHeaderTitle by remember { mutableStateOf("Trace") }
     LaunchedEffect(currentDestination?.route) {
@@ -253,223 +253,6 @@ fun MainShellScreen(
                                             }
                                         }
                                     }
-                                } else if (isUsersScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Users & Access",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                                        ) {
-                                            Text(
-                                                text = "ADMIN CONTROL",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 10.sp,
-                                                    letterSpacing = 0.5.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                } else if (isFilesScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Remote Files",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                                        ) {
-                                            Text(
-                                                text = "FILE MANAGER",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 10.sp,
-                                                    letterSpacing = 0.5.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                } else if (isScreenCaptureScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Screen Capture",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                                        ) {
-                                            Text(
-                                                text = "REMOTE MIRROR",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 10.sp,
-                                                    letterSpacing = 0.5.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                } else if (isAudioScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Remote Audio",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                                        ) {
-                                            Text(
-                                                text = "SURVEILLANCE",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 10.sp,
-                                                    letterSpacing = 0.5.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                } else if (isCameraScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Live Camera",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                                        ) {
-                                            Text(
-                                                text = "REMOTE VIDEO",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 10.sp,
-                                                    letterSpacing = 0.5.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                } else if (isSettingsScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Settings",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                                        ) {
-                                            Text(
-                                                text = "PREFERENCES",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 10.sp,
-                                                    letterSpacing = 0.5.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                } else if (isDiagnosticsScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Diagnostics",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = com.livetracker.controller.ui.theme.StatusLive.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, com.livetracker.controller.ui.theme.StatusLive.copy(alpha = 0.30f))
-                                        ) {
-                                            Text(
-                                                text = "OPTIMAL",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 10.sp,
-                                                    letterSpacing = 0.5.sp
-                                                ),
-                                                color = com.livetracker.controller.ui.theme.StatusLive,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
                                 } else if (isAlertsScreen) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -521,7 +304,7 @@ fun MainShellScreen(
                                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
                                     modifier = Modifier
                                         .padding(start = 12.dp)
-                                        .size(36.dp)
+                                        .size(40.dp)
                                 ) {
                                     IconButton(
                                         onClick = {
@@ -532,13 +315,13 @@ fun MainShellScreen(
                                                 } catch (_: Exception) {}
                                             }
                                         },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Menu,
                                             contentDescription = "Menu",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
@@ -550,17 +333,17 @@ fun MainShellScreen(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
                                         modifier = Modifier
                                             .padding(end = 12.dp)
-                                            .size(36.dp)
+                                            .size(40.dp)
                                     ) {
                                         IconButton(
                                             onClick = { devicesViewModel.refresh() },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Refresh,
                                                 contentDescription = "Refresh Devices",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(19.dp)
                                             )
                                         }
                                     }
@@ -570,17 +353,17 @@ fun MainShellScreen(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
                                         modifier = Modifier
                                             .padding(end = 12.dp)
-                                            .size(36.dp)
+                                            .size(40.dp)
                                     ) {
                                         IconButton(
                                             onClick = { alertsViewModel.acknowledgeAll() },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.DoneAll,
                                                 contentDescription = "Acknowledge All Alerts",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(19.dp)
                                             )
                                         }
                                     }
@@ -590,17 +373,17 @@ fun MainShellScreen(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
                                         modifier = Modifier
                                             .padding(end = 12.dp)
-                                            .size(36.dp)
+                                            .size(40.dp)
                                     ) {
                                         IconButton(
                                             onClick = { diagnosticsViewModel.runDiagnostics() },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Refresh,
                                                 contentDescription = "Run Diagnostics Probe",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(19.dp)
                                             )
                                         }
                                     }
@@ -610,17 +393,17 @@ fun MainShellScreen(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
                                         modifier = Modifier
                                             .padding(end = 12.dp)
-                                            .size(36.dp)
+                                            .size(40.dp)
                                     ) {
                                         IconButton(
                                             onClick = { updatesViewModel.checkForUpdates() },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Refresh,
                                                 contentDescription = "Check for Updates",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(19.dp)
                                             )
                                         }
                                     }
@@ -631,6 +414,57 @@ fun MainShellScreen(
                                 titleContentColor = MaterialTheme.colorScheme.onSurface
                             )
                         )
+                        if (isUsersScreen || isPermissionsScreen || isAuditLogScreen) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                adminDestinations.forEach { adminDest ->
+                                    val selected = currentDestination?.route == adminDest.route
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .heightIn(min = 38.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (selected) {
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                                        },
+                                        border = BorderStroke(
+                                            width = 1.dp,
+                                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                        ),
+                                        onClick = {
+                                            if (!selected) {
+                                                navController.navigate(adminDest.route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = adminDest.title,
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                                ),
+                                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f),
                             thickness = 1.dp
@@ -665,6 +499,7 @@ fun MainShellScreen(
                     contentPadding = innerPadding,
                     viewModelFactory = viewModelFactory,
                     currentUser = currentUser,
+                    onLogout = onLogout,
                     onOpenDrawer = {
                         scope.launch {
                             drawerState.open()

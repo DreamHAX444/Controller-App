@@ -246,14 +246,19 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            com.livetracker.controller.ui.theme.TraceTheme {
+            val startupState by app.startupOrchestrator.state.collectAsStateWithLifecycle()
+            val themeConfig = if (startupState is StartupState.Ready) {
+                val observedTheme by app.mapPreferencesRepository.themeConfiguration.collectAsStateWithLifecycle()
+                observedTheme
+            } else {
+                com.livetracker.controller.ui.theme.ThemeConfiguration()
+            }
+
+            com.livetracker.controller.ui.theme.TraceTheme(themeConfig = themeConfig) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Observe startup orchestrator state
-                    val startupState by app.startupOrchestrator.state.collectAsStateWithLifecycle()
-
                     when (val startup = startupState) {
                         // Phase 1: Show Trace loading screen during initialization
                         is StartupState.Idle,

@@ -104,12 +104,13 @@ fun DiagnosticsScreen(
                     subtext = "Jitter: ${uiState.jitterMs}ms • 0% loss",
                     iconTint = StatusLive
                 )
+                val standbyTrackers = (uiState.registeredTrackers - uiState.onlineTrackers).coerceAtLeast(0)
                 BentoCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Sensors,
                     label = "FLEET STATUS",
                     value = "${uiState.registeredTrackers} Registered",
-                    subtext = "${uiState.onlineTrackers} Online • 2 Standby",
+                    subtext = "${uiState.onlineTrackers} Online • $standbyTrackers Standby",
                     iconTint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -149,7 +150,7 @@ fun DiagnosticsScreen(
         )
 
         Card(
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
@@ -196,7 +197,7 @@ fun DiagnosticsScreen(
             Button(
                 onClick = { viewModel.runDiagnostics() },
                 enabled = !uiState.isChecking,
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -234,7 +235,7 @@ fun DiagnosticsScreen(
             OutlinedButton(
                 onClick = { viewModel.clearCache() },
                 enabled = uiState.cacheSizeMb > 0.0,
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                 modifier = Modifier
                     .weight(1f)

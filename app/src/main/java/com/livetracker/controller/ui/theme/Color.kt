@@ -62,3 +62,8 @@ val StatusOnOfflineContainer = Color(0xFF334155)
 val StatusError = Color(0xFFDC2626)
 val StatusErrorContainer = Color(0xFFFEE2E2)
 val StatusOnErrorContainer = Color(0xFF7F1D1D)
+
+val StatusActive = StatusLive
+val StatusIdle = StatusConnecting
+val StatusWarning = StatusConnecting
+

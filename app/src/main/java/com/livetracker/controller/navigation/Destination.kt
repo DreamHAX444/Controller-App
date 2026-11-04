@@ -29,6 +29,7 @@ sealed class Destination(val route: String, val title: String, val icon: ImageVe
     object SettingsMenu : Destination("system", "System", Icons.Default.Settings)
     object Settings : Destination("system/settings", "Settings", Icons.Default.Settings)
     object Updates : Destination("system/updates", "Updates", Icons.Default.Refresh)
+    object Profile : Destination("system/profile", "Account Profile", Icons.Default.Person)
 }
 
 val primaryDestinations = listOf(

@@ -286,17 +286,17 @@ fun TraceAppDrawer(
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     IconButton(
                         onClick = onCloseDrawer,
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close navigation drawer",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                            modifier = Modifier.size(17.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -444,13 +444,28 @@ fun TraceAppDrawer(
             Spacer(modifier = Modifier.height(10.dp))
 
             // -------------------------------------------------------------
-            // 4. OPERATOR IDENTITY & LOCK SESSION FOOTER
+            // 4. OPERATOR IDENTITY & LOCK SESSION FOOTER (Tap to open Account Profile)
             // -------------------------------------------------------------
+            val isProfileSelected = currentRoute == Destination.Profile.route
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)),
-                modifier = Modifier.fillMaxWidth()
+                color = if (isProfileSelected) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
+                },
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = if (isProfileSelected) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onNavigate(Destination.Profile) }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -488,14 +503,14 @@ fun TraceAppDrawer(
                             )
                             Spacer(modifier = Modifier.width(4.5.dp))
                             Text(
-                                text = currentUser?.email ?: (currentUser?.role?.name ?: "Session Active"),
+                                text = "${currentUser?.role?.name ?: "VISITOR"} • View Profile",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Normal
                                 ),
                                 maxLines = 1,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.80f)
                             )
                         }
                     }
@@ -503,17 +518,17 @@ fun TraceAppDrawer(
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         IconButton(
                             onClick = onLogout,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                                 contentDescription = "Lock session / Log out",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -716,13 +731,13 @@ private fun SecondaryToolItem(
     }
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(10.dp),
         color = animatedBgColor,
         border = borderStroke,
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .height(44.dp)
+            .clip(RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
     ) {
         Row(

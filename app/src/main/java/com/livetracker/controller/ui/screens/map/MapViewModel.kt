@@ -104,6 +104,18 @@ class MapViewModel(
     val cartoApiKey: StateFlow<String> =
         mapPreferencesRepository?.cartoApiKey ?: _fallbackCartoApiKey.asStateFlow()
 
+    private val _fallbackHasSeenGestureCoach = MutableStateFlow(true)
+    val hasSeenGestureCoach: StateFlow<Boolean> =
+        mapPreferencesRepository?.hasSeenGestureCoach ?: _fallbackHasSeenGestureCoach.asStateFlow()
+
+    fun setHasSeenGestureCoach(seen: Boolean) {
+        if (mapPreferencesRepository != null) {
+            mapPreferencesRepository.setHasSeenGestureCoach(seen)
+        } else {
+            _fallbackHasSeenGestureCoach.value = seen
+        }
+    }
+
     private val _selectedMarker = MutableStateFlow<MapMarker?>(null)
     val selectedMarker: StateFlow<MapMarker?> = _selectedMarker.asStateFlow()
 
@@ -116,13 +128,21 @@ class MapViewModel(
                 when (state) {
                     is MapState.Active -> {
                         if (current != null) {
-                            val updated = state.markers.find { it.deviceId == current.deviceId }
+                            val updated = state.markers.find { it.deviceId == current.deviceId && it.isSelected }
                             _selectedMarker.value = updated
                         } else if (pendingSingleSelection != null) {
                             val target = state.markers.find { it.deviceId == pendingSingleSelection }
                             if (target != null) {
                                 _selectedMarker.value = target
                                 pendingSingleSelection = null
+                            }
+                        } else {
+                            val savedFocusedId = mapPreferencesRepository?.lastFocusedDeviceId?.value
+                            if (!savedFocusedId.isNullOrBlank()) {
+                                val restored = state.markers.find { it.deviceId.value == savedFocusedId && it.isSelected }
+                                if (restored != null) {
+                                    _selectedMarker.value = restored
+                                }
                             }
                         }
                     }
@@ -161,6 +181,9 @@ class MapViewModel(
         _selectedMarker.value = marker
         if (marker == null) {
             pendingSingleSelection = null
+            mapPreferencesRepository?.setLastFocusedDeviceId(null)
+        } else {
+            mapPreferencesRepository?.setLastFocusedDeviceId(marker.deviceId.value)
         }
     }
 
@@ -180,6 +203,7 @@ class MapViewModel(
         val marker = (mapState.value as? MapState.Active)?.markers?.find { it.deviceId == deviceId }
         _selectedMarker.value = marker
         pendingSingleSelection = if (marker == null) deviceId else null
+        mapPreferencesRepository?.setLastFocusedDeviceId(deviceId.value)
     }
 
     fun selectMultipleDevices(deviceIds: Set<TrackerId>) {
@@ -212,6 +236,21 @@ class MapViewModel(
             updated.size == allIds.size -> deviceSelectionManager?.selectAll()
             updated.size == 1 -> deviceSelectionManager?.selectDevice(updated.first())
             else -> deviceSelectionManager?.selectMultipleDevices(updated)
+        }
+
+        val currentSelectedId = _selectedMarker.value?.deviceId
+        if (currentSelectedId != null && currentSelectedId !in updated) {
+            val activeMarkers = (mapState.value as? MapState.Active)?.markers.orEmpty()
+            val nextMarker = activeMarkers.firstOrNull { it.deviceId in updated }
+            _selectedMarker.value = nextMarker
+            mapPreferencesRepository?.setLastFocusedDeviceId(nextMarker?.deviceId?.value)
+        } else if (currentSelectedId == null && updated.isNotEmpty()) {
+            val activeMarkers = (mapState.value as? MapState.Active)?.markers.orEmpty()
+            val nextMarker = activeMarkers.firstOrNull { it.deviceId in updated }
+            if (nextMarker != null) {
+                _selectedMarker.value = nextMarker
+                mapPreferencesRepository?.setLastFocusedDeviceId(nextMarker.deviceId.value)
+            }
         }
     }
 

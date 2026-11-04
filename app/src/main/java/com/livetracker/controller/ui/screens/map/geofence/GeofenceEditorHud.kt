@@ -67,6 +67,8 @@ import androidx.compose.ui.unit.sp
 import com.livetracker.controller.core.tracker.geofence.domain.AlertSoundProfile
 import com.livetracker.controller.core.tracker.geofence.domain.GeoFenceType
 import com.livetracker.controller.core.tracker.geofence.domain.GeofenceTriggerRule
+import com.livetracker.controller.ui.theme.StatusError
+import com.livetracker.controller.ui.theme.StatusLive
 
 /** Curated, accessible high-contrast palette for geofence perimeters */
 val GEOFENCE_PRESET_COLORS = listOf(
@@ -439,15 +441,23 @@ fun GeofenceEditorHud(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val rules = listOf(
-                        GeofenceTriggerRule.ENTRY to "Entry 🟢",
-                        GeofenceTriggerRule.EXIT to "Exit 🔴",
-                        GeofenceTriggerRule.BOTH to "Both 🔄"
+                        Triple(GeofenceTriggerRule.ENTRY, "Entry", StatusLive),
+                        Triple(GeofenceTriggerRule.EXIT, "Exit", StatusError),
+                        Triple(GeofenceTriggerRule.BOTH, "Both", MaterialTheme.colorScheme.primary)
                     )
-                    rules.forEach { (rule, label) ->
+                    rules.forEach { (rule, label, dotColor) ->
                         val isSelected = state.triggerRule == rule
                         FilterChip(
                             selected = isSelected,
                             onClick = { onTriggerRuleChange(rule) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(dotColor)
+                                )
+                            },
                             label = {
                                 Text(
                                     text = label,
@@ -480,11 +490,11 @@ fun GeofenceEditorHud(
                         onClick = {
                             if (isTestingSound) onStopSound() else onTestSound(state.soundProfile)
                         },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = if (isTestingSound) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         ),
-                        modifier = Modifier.height(32.dp)
+                        modifier = Modifier.height(38.dp)
                     ) {
                         Icon(
                             imageVector = if (isTestingSound) Icons.Default.Stop else Icons.Default.PlayArrow,

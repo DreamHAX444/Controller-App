@@ -241,7 +241,8 @@ class TraceApplication : Application() {
                         clientProvider = { com.livetracker.controller.core.tracker.supabase.SupabaseClientProvider.client },
                         scope = applicationScope,
                         commandGateway = commandGateway,
-                        commandStateStore = commandStateStore
+                        commandStateStore = commandStateStore,
+                        sessionRepository = sessionRepository
                     )
                     idleWakeWatchdog = com.livetracker.controller.lifecycle.IdleWakeWatchdog(
                         trackerDeviceRepository = trackerDeviceRepository,
@@ -263,7 +264,7 @@ class TraceApplication : Application() {
                             com.livetracker.controller.core.tracker.supabase.SupabaseTrackerTransport(
                                 deviceId = trackerId,
                                 fleetManager = supabaseFleetManager,
-                                scope = applicationScope
+                               scope = applicationScope
                             )
                         }
                     )
@@ -326,6 +327,22 @@ class TraceApplication : Application() {
                     applicationScope.launch {
                         sessionRepository.observeActiveSession().collect { session ->
                             fleetLifecycleManager.onSessionChanged(session)
+                        }
+                    }
+
+                    // Continuous live RBAC, role, status & device/feature permission reconciliation
+                    applicationScope.launch {
+                        while (true) {
+                            kotlinx.coroutines.delay(6_000L)
+                            try {
+                                val activeSession = sessionRepository.getActiveSession().getOrNull()
+                                if (activeSession != null && activeSession.isValid()) {
+                                    val uid = activeSession.user.id
+                                    if (uid.length == 36 && uid.contains('-')) {
+                                        supabaseFleetManager.reconcileEffectivePermissions(uid)
+                                    }
+                                }
+                            } catch (_: Exception) {}
                         }
                     }
 

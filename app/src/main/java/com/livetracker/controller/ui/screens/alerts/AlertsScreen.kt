@@ -2,6 +2,7 @@ package com.livetracker.controller.ui.screens.alerts
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -234,21 +236,46 @@ fun AlertsScreen(
                 }
             }
 
-            if (uiState.isFiltered) {
-                TextButton(
-                    onClick = { viewModel.clearFilters() },
-                    modifier = Modifier.sizeIn(minHeight = 44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Reset Filters",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                    )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (uiState.isFiltered) {
+                    TextButton(
+                        onClick = { viewModel.clearFilters() },
+                        modifier = Modifier.sizeIn(minHeight = 44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Reset",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
+                }
+
+                if (uiState.filteredAlerts.isNotEmpty()) {
+                    FilledTonalButton(
+                        onClick = { showAcknowledgeDialog = true },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.sizeIn(minHeight = 44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (uiState.isFiltered) "Ack (${uiState.filteredAlerts.size})" else "Ack All",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
                 }
             }
         }
@@ -470,9 +497,29 @@ fun AlertItem(
         alertTimeFormatter.get()?.format(Date(alert.timestamp)).orEmpty()
     }
 
+    var dragOffsetX by remember(alert.id) { androidx.compose.runtime.mutableFloatStateOf(0f) }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset { androidx.compose.ui.unit.IntOffset(dragOffsetX.toInt(), 0) }
+            .pointerInput(alert.id) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (dragOffsetX > 110f) {
+                            onAcknowledge(alert.id)
+                        }
+                        dragOffsetX = 0f
+                    },
+                    onDragCancel = { dragOffsetX = 0f },
+                    onHorizontalDrag = { change, dragAmount ->
+                        val next = (dragOffsetX + dragAmount).coerceAtLeast(0f)
+                        if (next > 0f) change.consume()
+                        dragOffsetX = next
+                    }
+                )
+            },
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -486,7 +533,7 @@ fun AlertItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(spec.containerColor, RoundedCornerShape(10.dp)),
+                    .background(spec.containerColor, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

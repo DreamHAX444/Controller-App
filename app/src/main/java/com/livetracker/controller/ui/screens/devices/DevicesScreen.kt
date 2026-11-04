@@ -6,9 +6,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -140,6 +142,7 @@ fun DevicesScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -343,7 +346,7 @@ fun DeviceCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(
             if (device.isSelected) 2.dp else 1.dp,
@@ -527,54 +530,62 @@ fun DeviceCard(
             }
 
             // Quick Service Launch Row
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FilledTonalButton(
                     onClick = onNavigateToCamera,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(30.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Videocam, contentDescription = "Camera", modifier = Modifier.size(13.dp))
+                    Icon(imageVector = Icons.Default.Videocam, contentDescription = "Camera", modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Cam", style = MaterialTheme.typography.labelSmall)
+                    Text("Cam", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
                 }
 
                 FilledTonalButton(
                     onClick = onNavigateToAudio,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(30.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Call, contentDescription = "Audio", modifier = Modifier.size(13.dp))
+                    Icon(imageVector = Icons.Default.Call, contentDescription = "Audio", modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Audio", style = MaterialTheme.typography.labelSmall)
+                    Text("Audio", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
                 }
 
                 FilledTonalButton(
                     onClick = onNavigateToScreen,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(30.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Screenshot, contentDescription = "Screen", modifier = Modifier.size(13.dp))
+                    Icon(imageVector = Icons.Default.Screenshot, contentDescription = "Screen", modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Screen", style = MaterialTheme.typography.labelSmall)
+                    Text("Screen", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
                 }
 
                 FilledTonalButton(
                     onClick = onNavigateToFiles,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(30.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.FolderShared, contentDescription = "Files", modifier = Modifier.size(13.dp))
+                    Icon(imageVector = Icons.Default.FolderShared, contentDescription = "Files", modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Files", style = MaterialTheme.typography.labelSmall)
+                    Text("Files", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
                 }
             }
 
@@ -597,11 +608,12 @@ fun DeviceCard(
                         FilledTonalButton(
                             onClick = onWake,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color(0xFF1B4D3E),
-                                contentColor = Color(0xFF4ADE80)
-                            )
+                                containerColor = StatusLive.copy(alpha = 0.16f),
+                                contentColor = StatusLive
+                            ),
+                            modifier = Modifier.height(38.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -615,11 +627,12 @@ fun DeviceCard(
                         OutlinedButton(
                             onClick = onSleep,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFF94A3B8)
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
-                            border = BorderStroke(1.dp, Color(0xFF334155))
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.height(38.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
@@ -632,11 +645,15 @@ fun DeviceCard(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     FilledTonalButton(
                         onClick = onFocusOnMap,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.height(38.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Place,
@@ -644,7 +661,7 @@ fun DeviceCard(
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Map", style = MaterialTheme.typography.labelSmall)
+                        Text("Map", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold))
                     }
 
                     if (userRole == Role.OWNER || userRole == Role.ADMIN) {
@@ -652,8 +669,9 @@ fun DeviceCard(
                             OutlinedButton(
                                 onClick = onUnassign,
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                modifier = Modifier.height(38.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
@@ -667,7 +685,8 @@ fun DeviceCard(
                             Button(
                                 onClick = onAssign,
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.height(38.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Person,
@@ -681,7 +700,7 @@ fun DeviceCard(
 
                         IconButton(
                             onClick = onDelete,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,

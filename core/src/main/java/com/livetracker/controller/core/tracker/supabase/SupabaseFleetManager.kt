@@ -917,7 +917,7 @@ open class SupabaseFleetManager(
      * Updates local authorized device sets and triggers immediate revocation if status changed.
      */
     open suspend fun reconcileEffectivePermissions(userId: String? = null): EffectivePermissionsResponse? = withContext(Dispatchers.IO) {
-        val session = currentSession ?: return@withContext null
+        val session = currentSession ?: sessionRepository?.getActiveSession()?.getOrNull() ?: return@withContext null
 
         try {
             val targetUserId = userId ?: session.user.id
@@ -937,13 +937,22 @@ open class SupabaseFleetManager(
                 setAuthorizedDevices(assignedIds)
 
                 sessionRepository?.let { repo ->
-                    val current = repo.getActiveSession().getOrNull()
-                    if (current != null && current.user.id == parsed.userId) {
+                    val current = repo.getActiveSession().getOrNull() ?: session
+                    if (current.user.id == parsed.userId) {
                         val newRole = runCatching { Role.valueOf(parsed.role.trim().uppercase()) }.getOrDefault(current.user.role)
                         val newStatus = runCatching { AccountStatus.valueOf(parsed.status.trim().uppercase()) }.getOrDefault(current.user.accountStatus)
 
+                        // Temporarily advance currentSession role/status if promoted so fetchFleetDevices() is not blocked
+                        if (newRole != Role.VISITOR && newStatus == AccountStatus.ACTIVE) {
+                            currentSession = current.copy(
+                                user = current.user.copy(role = newRole, accountStatus = newStatus)
+                            )
+                        }
+
                         val newDevicePermissions = if (newRole == Role.ADMIN || newRole == Role.OWNER) {
-                            fetchFleetDevices().map { dev ->
+                            val fleetDevs = fetchFleetDevices()
+                            setAuthorizedDevices(fleetDevs.map { it.deviceId })
+                            fleetDevs.map { dev ->
                                 DevicePermission(
                                     deviceId = dev.deviceId,
                                     allowedServices = setOf(
@@ -960,6 +969,8 @@ open class SupabaseFleetManager(
                                     )
                                 )
                             }
+                        } else if (newRole == Role.VISITOR) {
+                            emptyList()
                         } else {
                             parsed.assignments.map { asgn ->
                                 val services = FeaturePermissionMapper.toServicePermissions(asgn.features)
@@ -982,8 +993,15 @@ open class SupabaseFleetManager(
                             displayName = parsed.displayName.ifBlank { current.user.displayName },
                             avatarUrl = parsed.avatarUrl ?: current.user.avatarUrl
                         )
-                        repo.updateSessionUser(updatedUser)
-                        currentSession = current.copy(user = updatedUser)
+                        currentSession = if (newRole == Role.VISITOR || newStatus != AccountStatus.ACTIVE) {
+                            null
+                        } else {
+                            current.copy(user = updatedUser)
+                        }
+                        if (updatedUser != current.user) {
+                            Log.i(tag, "Live session permissions/role updated for '${updatedUser.id}': role=${updatedUser.role}, status=${updatedUser.accountStatus}, devices=${updatedUser.devicePermissions.size}")
+                            repo.updateSessionUser(updatedUser)
+                        }
                     }
                 }
             }

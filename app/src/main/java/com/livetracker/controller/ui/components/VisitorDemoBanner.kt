@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.livetracker.controller.ui.theme.StatusConnecting
+
 /**
  * Prominent tactical banner displayed when an authenticated user has the VISITOR role.
  * Enforces UX transparency that the environment is a simulated sandbox.
@@ -30,9 +32,9 @@ fun VisitorDemoBanner(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = Color(0xFF231C08),
-        border = BorderStroke(1.dp, Color(0xFFFFB800))
+        shape = RoundedCornerShape(12.dp),
+        color = StatusConnecting.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, StatusConnecting.copy(alpha = 0.45f))
     ) {
         Row(
             modifier = Modifier
@@ -43,14 +45,14 @@ fun VisitorDemoBanner(
             Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = "Demo Mode",
-                tint = Color(0xFFFFB800),
-                modifier = Modifier.size(24.dp)
+                tint = StatusConnecting,
+                modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "VISITOR SANDBOX — DEMO MODE",
-                    color = Color(0xFFFFB800),
+                    color = StatusConnecting,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
@@ -58,7 +60,7 @@ fun VisitorDemoBanner(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Simulated synthetic trackers only. Contact Admin for fleet assignment.",
-                    color = Color(0xFFE5D5AA),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     lineHeight = 15.sp
                 )
@@ -66,18 +68,18 @@ fun VisitorDemoBanner(
             Spacer(modifier = Modifier.width(8.dp))
             OutlinedButton(
                 onClick = onRefreshAccess,
-                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(6.dp),
-                border = BorderStroke(1.dp, Color(0xFFFFB800).copy(alpha = 0.7f)),
+                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 40.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, StatusConnecting.copy(alpha = 0.6f)),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFFFFB800)
+                    contentColor = StatusConnecting
                 )
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "Refresh Access",
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(

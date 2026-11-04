@@ -115,9 +115,9 @@ fun GoogleSignInButton(
     Surface(
         onClick = onClick,
         enabled = enabled && !isLoading,
-        shape = RoundedCornerShape(8.dp),
-        color = Color(0xFF131314),
-        border = BorderStroke(1.dp, Color(0xFF8E918F)),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
@@ -133,12 +133,12 @@ fun GoogleSignInButton(
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Authenticating...",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -147,9 +147,9 @@ fun GoogleSignInButton(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Sign in with Google",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

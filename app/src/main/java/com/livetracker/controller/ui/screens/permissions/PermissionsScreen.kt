@@ -234,7 +234,7 @@ fun PermissionsScreen(
 
                 // STEP A: Target User Selector
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = TacticalCard),
                     border = BorderStroke(1.dp, TacticalBorder),
                     modifier = Modifier.fillMaxWidth()
@@ -331,7 +331,7 @@ fun PermissionsScreen(
                 // Authority & Sandbox Explanations for non-USER accounts
                 if (targetUser != null && (targetUser.role == Role.OWNER || targetUser.role == Role.ADMIN)) {
                     Card(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = TacticalCardSecondary),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                         modifier = Modifier.fillMaxWidth()
@@ -372,7 +372,7 @@ fun PermissionsScreen(
                     }
                 } else if (targetUser != null && targetUser.role == Role.VISITOR) {
                     Card(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = TacticalCardSecondary),
                         border = BorderStroke(1.dp, StatusConnecting.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth()
@@ -414,7 +414,7 @@ fun PermissionsScreen(
                 } else if (targetUser != null && targetUser.role == Role.USER) {
                     // STEP B: Assigned Device Selector
                     Card(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = TacticalCard),
                         border = BorderStroke(1.dp, TacticalBorder),
                         modifier = Modifier.fillMaxWidth()
@@ -616,7 +616,7 @@ fun PermissionsScreen(
                     // STEP C: Live 6-Feature Permission Matrix
                     if (activeAssignment != null) {
                         Card(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(20.dp),
                             colors = CardDefaults.cardColors(containerColor = TacticalCard),
                             border = BorderStroke(1.dp, TacticalBorder),
                             modifier = Modifier.fillMaxWidth()

@@ -68,12 +68,14 @@ import com.livetracker.controller.core.tracker.map.domain.MapMarker
 import com.livetracker.controller.core.tracker.map.domain.MapState
 import com.livetracker.controller.ui.screens.map.components.DeviceSelectionSheet
 import com.livetracker.controller.ui.screens.map.components.DeviceTelemetryCard
+import com.livetracker.controller.ui.screens.map.components.GestureOnboardingOverlay
 import com.livetracker.controller.ui.screens.map.components.MapCanvas
 import com.livetracker.controller.ui.screens.map.components.MapTopBar
 import com.livetracker.controller.ui.screens.map.config.MapProvider
 import com.livetracker.controller.ui.screens.map.geofence.GeofenceEditorHud
 import com.livetracker.controller.ui.screens.map.geofence.GeofenceEditorState
 import com.livetracker.controller.ui.screens.map.geofence.GeofenceListSheet
+import com.livetracker.controller.ui.util.DeviceNameFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
@@ -101,6 +103,7 @@ fun MapScreen(
     val deviceSelection by viewModel.deviceSelection.collectAsStateWithLifecycle()
     val deviceSummaries by viewModel.deviceSummaries.collectAsStateWithLifecycle()
     val unacknowledgedAlerts by viewModel.unacknowledgedAlerts.collectAsStateWithLifecycle()
+    val hasSeenGestureCoach by viewModel.hasSeenGestureCoach.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val app = context.applicationContext as? TraceApplication
@@ -261,37 +264,39 @@ fun MapScreen(
 
     // Reactive starter fly-in when markers become available on first attempt
     LaunchedEffect(activeMarkers.isNotEmpty()) {
-        if (activeMarkers.isNotEmpty() && !hasRunIntroCameraAnimation && savedCamera == null) {
-            val target = activeMarkers.first()
+        if (activeMarkers.isNotEmpty() && !hasRunIntroCameraAnimation) {
+            val target = selectedMarker ?: activeMarkers.first()
             if (selectedMarker == null) {
                 viewModel.selectMarker(target)
             }
-            if (mapConfiguration.provider != MapProvider.GOOGLE_MAPS) {
-                osmMapView?.let { mapView ->
-                    mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
-                    mapView.controller.setZoom(11.5)
-                    mapView.postDelayed({
-                        mapView.controller.animateTo(GeoPoint(target.latitude, target.longitude), 15.5, 1100L)
-                        hasRunIntroCameraAnimation = true
-                    }, 180L)
+            if (savedCamera == null) {
+                if (mapConfiguration.provider != MapProvider.GOOGLE_MAPS) {
+                    osmMapView?.let { mapView ->
+                        mapView.controller.setCenter(GeoPoint(target.latitude, target.longitude))
+                        mapView.controller.setZoom(11.5)
+                        mapView.postDelayed({
+                            mapView.controller.animateTo(GeoPoint(target.latitude, target.longitude), 15.5, 1100L)
+                            hasRunIntroCameraAnimation = true
+                        }, 180L)
+                    }
+                } else {
+                    googleCameraState.position = CameraPosition.fromLatLngZoom(LatLng(target.latitude, target.longitude), 11.5f)
+                    delay(180)
+                    googleCameraState.animate(
+                        CameraUpdateFactory.newLatLngZoom(LatLng(target.latitude, target.longitude), 15.5f),
+                        1100
+                    )
+                    hasRunIntroCameraAnimation = true
                 }
-            } else {
-                googleCameraState.position = CameraPosition.fromLatLngZoom(LatLng(target.latitude, target.longitude), 11.5f)
-                delay(180)
-                googleCameraState.animate(
-                    CameraUpdateFactory.newLatLngZoom(LatLng(target.latitude, target.longitude), 15.5f),
-                    1100
-                )
-                hasRunIntroCameraAnimation = true
             }
         }
     }
 
-    // Google Maps initial fly-in when saved camera exists or default coords
+    // Google Maps initial fly-in when saved camera or focused marker exists
     LaunchedEffect(Unit) {
         if (!hasRunIntroCameraAnimation && mapConfiguration.provider == MapProvider.GOOGLE_MAPS) {
-            val targetLat = savedCamera?.first ?: activeMarkers.firstOrNull()?.latitude ?: 37.7749
-            val targetLon = savedCamera?.second ?: activeMarkers.firstOrNull()?.longitude ?: -122.4194
+            val targetLat = selectedMarker?.latitude ?: savedCamera?.first ?: activeMarkers.firstOrNull()?.latitude ?: 37.7749
+            val targetLon = selectedMarker?.longitude ?: savedCamera?.second ?: activeMarkers.firstOrNull()?.longitude ?: -122.4194
             val targetZoom = (savedCamera?.third ?: 15.5).toFloat()
             delay(180)
             googleCameraState.animate(
@@ -331,8 +336,8 @@ fun MapScreen(
             },
             onOsmMapReady = { mapView ->
                 osmMapView = mapView
-                val targetLat = savedCamera?.first ?: activeMarkers.firstOrNull()?.latitude ?: 37.7749
-                val targetLon = savedCamera?.second ?: activeMarkers.firstOrNull()?.longitude ?: -122.4194
+                val targetLat = selectedMarker?.latitude ?: savedCamera?.first ?: activeMarkers.firstOrNull()?.latitude ?: 37.7749
+                val targetLon = selectedMarker?.longitude ?: savedCamera?.second ?: activeMarkers.firstOrNull()?.longitude ?: -122.4194
                 val targetZoom = savedCamera?.third ?: 15.5
 
                 if (!hasRunIntroCameraAnimation) {
@@ -345,9 +350,9 @@ fun MapScreen(
                         mapView.controller.animateTo(GeoPoint(targetLat, targetLon), targetZoom, 1100L)
                         hasRunIntroCameraAnimation = true
                     }, 180L)
-                } else if (savedCamera != null) {
-                    mapView.controller.setCenter(GeoPoint(savedCamera.first, savedCamera.second))
-                    mapView.controller.setZoom(savedCamera.third)
+                } else {
+                    mapView.controller.setCenter(GeoPoint(targetLat, targetLon))
+                    mapView.controller.setZoom(targetZoom)
                 }
             }
         )
@@ -392,7 +397,19 @@ fun MapScreen(
                     },
                     topPadding = topPadding,
                     startPadding = startPadding,
-                    endPadding = endPadding
+                    endPadding = endPadding,
+                    focusedDeviceName = selectedMarker?.let {
+                        DeviceNameFormatter.formatFriendlyName(it.displayName, it.deviceId.value)
+                    },
+                    onSwipeTracker = { direction ->
+                        if (activeMarkers.size > 1) {
+                            val currentIdx = activeMarkers.indexOfFirst { it.deviceId == selectedMarker?.deviceId }.coerceAtLeast(0)
+                            val nextIdx = ((currentIdx + direction) % activeMarkers.size + activeMarkers.size) % activeMarkers.size
+                            val nextMarker = activeMarkers[nextIdx]
+                            viewModel.selectMarker(nextMarker)
+                            focusOnCoordinate(nextMarker.latitude, nextMarker.longitude)
+                        }
+                    }
                 )
 
                 // Dropdown Device Selection Modal (with fluid top-down animation)
@@ -503,26 +520,9 @@ fun MapScreen(
         }
 
         // 6. Selected Device Live Telemetry Pager
-        // Supports horizontal swiping between active/available devices with smooth physics.
-        // Syncs seamlessly with map camera focus and device selection.
-        val swipeableMarkers = remember(activeMarkers, allMarkers) {
-            if (activeMarkers.size > 1) {
-                activeMarkers
-            } else if (allMarkers.size > 1) {
-                allMarkers
-            } else {
-                activeMarkers
-            }
-        }
-
-        // Ensure selected marker is always in the swipeable list if non-null
-        val effectiveSwipeableMarkers: List<MapMarker> = remember(swipeableMarkers, selectedMarker) {
-            val current = selectedMarker
-            if (current != null && !swipeableMarkers.any { it.deviceId == current.deviceId }) {
-                listOf(current) + swipeableMarkers
-            } else {
-                swipeableMarkers
-            }
+        // Strictly bound to activeMarkers (selected devices only) so unselected devices never appear in the swipe pager.
+        val effectiveSwipeableMarkers: List<MapMarker> = remember(activeMarkers) {
+            activeMarkers
         }
 
         // Retain last known markers during exit animation so card doesn't flicker when dismissed
@@ -540,13 +540,17 @@ fun MapScreen(
             displayMarkers.size
         }
 
-        // When a marker is selected from the map or external event, scroll the pager smoothly
+        // When a marker is selected from the map, top bar swipe, or multi-select auto-switch, scroll pager and focus camera
         val targetDeviceId = selectedMarker?.deviceId
-        LaunchedEffect(targetDeviceId) {
+        LaunchedEffect(targetDeviceId, displayMarkers.size) {
             if (targetDeviceId == null) return@LaunchedEffect
             val targetIndex = displayMarkers.indexOfFirst { it.deviceId == targetDeviceId }
-            if (targetIndex >= 0 && targetIndex != pagerState.currentPage && !pagerState.isScrollInProgress) {
-                pagerState.animateScrollToPage(targetIndex)
+            if (targetIndex >= 0) {
+                if (targetIndex != pagerState.currentPage && !pagerState.isScrollInProgress) {
+                    pagerState.animateScrollToPage(targetIndex)
+                }
+                val targetMarker = displayMarkers[targetIndex]
+                focusOnCoordinate(targetMarker.latitude, targetMarker.longitude)
             }
         }
 
@@ -593,6 +597,7 @@ fun MapScreen(
                         totalDeviceCount = displayMarkers.size,
                         onDismiss = { viewModel.selectMarker(null) },
                         onCenterOnDevice = { focusOnCoordinate(marker.latitude, marker.longitude, 16.5f) },
+                        onDoubleTapZoom = { focusOnCoordinate(marker.latitude, marker.longitude, 17.8f) },
                         onPreviousDevice = if (page > 0) {
                             { coroutineScope.launch { pagerState.animateScrollToPage(page - 1) } }
                         } else null,
@@ -660,6 +665,17 @@ fun MapScreen(
                     )
                 }
             }
+        }
+
+        // 8. Interactive First-Time Gesture Coach Overlay
+        AnimatedVisibility(
+            visible = hudVisible && !hasSeenGestureCoach && editorState is GeofenceEditorState.Idle,
+            enter = fadeIn(tween(280)),
+            exit = fadeOut(tween(220))
+        ) {
+            GestureOnboardingOverlay(
+                onComplete = { viewModel.setHasSeenGestureCoach(true) }
+            )
         }
     }
 

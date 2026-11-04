@@ -1,170 +1,79 @@
-# Trace Controller — Design System Specification
+# Trace Controller — Master UI/UX Design & Architecture Blueprint
 
-## 1. Design Philosophy & Vision
+## 1. Executive Design Philosophy
+Trace Controller is designed around a **Minimalist, Sophisticated, High-Precision Operational Aesthetic**. Every screen prioritizes clarity, zero visual clutter, instantaneous state feedback, and fluid 60–120 FPS spring-physics motion.
 
-The Trace Controller App is a mobile-first, real-time tactical asset and location tracking dashboard.
-The interface is engineered around precision, high clarity, and zero visual noise:
-- **Map-First Experience**: The map canvas occupies 100% of the screen. All UI components float gracefully with elevation, subtle translucent borders, and responsive edge-to-edge insets.
-- **Unified Visual Identity**: Every floating card, bottom sheet, HUD, badge, and selector shares the exact same curvature hierarchy, surface palette, border stroke, elevation, and 8-point spacing grid.
-- **Honest Real-Time Telemetry**: Never fake status indicators. Live items pulse emerald; connecting items glow amber; offline items remain calm slate. Batteries, network state, and speed are accurately qualified.
+### Core Principles
+1. **Two Distinct Spatial Modes**:
+   - **Mode A — Immersive Map HUD (`MapScreen`)**: 100% edge-to-edge spatial canvas with floating glassmorphic controls:
+     - **Top Left**: Navigation Drawer Launcher (`48.dp` circular floating button).
+     - **Top Center**: Dynamic Island Tracker Capsule (displays active selection state, live connection pulse, and supports **tap** to open the tracker selector dropdown and **horizontal swipe** to cycle through active trackers).
+     - **Top Right**: Geofence Perimeter Manager Launcher (`48.dp` circular floating button with active zone badge).
+     - **Bottom**: Synchronized Live Device Telemetry Pager (`HorizontalPager` with scale/alpha physics, **horizontal swipe** to switch active trackers, **vertical swipe-down** to dismiss, **double-tap** to deep-zoom, and 1-tap quick service launchers).
+   - **Mode B — Structured Operational Shell (`MainShellScreen`)**: Clean, distraction-free operational workspace with a unified `TopAppBar`, quick contextual actions, and floating bottom navigation dock (`TraceBottomBar`).
 
----
-
-## 2. Color Palette & Surface Tokens
-
-### Surfaces & Backgrounds
-| Token | Light Theme | Dark Theme | Purpose |
-|:---|:---|:---|:---|
-| `Surface Container` (Cards) | `#FFFFFF` | `#111827` (`TraceSurfaceDark`) | Base floating card background for all dialogs, sheets, and HUDs |
-| `Surface Elevated` | `#F8FAFC` | `#192134` | Elevated capsules and floating action buttons |
-| `Tile Neutral` | `#F1F5F9` (alpha 0.65) | `#1E293B` (alpha 0.35) | Unselected list items, device rows, and geofence rows |
-| `Tile Active / Selected` | `#DBEAFE` (alpha 0.40) | `#1E3A8A` (alpha 0.30) | Selected device rows, active filters |
-| `Card Border Stroke` | `#E2E8F0` (alpha 0.50) | `#334155` (alpha 0.35) | Outer card boundary (1.dp) |
-| `Tile Border Stroke` | `#E2E8F0` (alpha 0.35) | `#334155` (alpha 0.25) | Inner row boundary (1.dp) |
-| `Divider Color` | `#E2E8F0` (alpha 0.35) | `#334155` (alpha 0.25) | Subtle horizontal section divider (1.dp) |
-
-### Brand & Accents
-| Token | Hex Value | Purpose |
-|:---|:---|:---|
-| `Primary` | `#1E40AF` (Light) / `#60A5FA` (Dark) | Primary actions, checkmarks, selected highlights, active focus |
-| `PrimaryContainer` | `#DBEAFE` (Light) / `#1E3A8A` (Dark) | Badge backgrounds, action buttons |
-| `OnPrimaryContainer` | `#1E3A8A` (Light) / `#DBEAFE` (Dark) | Primary button text & icons |
-
-### Semantic Status Tokens
-| State | Color Token | Hex | Badge Container | Purpose |
-|:---|:---|:---|:---|:---|
-| **Live / Online** | `StatusLive` | `#16A34A` / `#10B981` | `#DCFCE7` (15% alpha) | Connected devices, active geofences, moving assets |
-| **Connecting / Stale** | `StatusConnecting` | `#D97706` / `#F59E0B` | `#FEF3C7` (15% alpha) | Reconnecting, WebRTC negotiating, location stale |
-| **Offline / Degraded** | `StatusOffline` | `#64748B` | `#F1F5F9` (15% alpha) | Disconnected devices, disabled geofences |
-| **Critical / Error** | `StatusError` | `#DC2626` / `#EF4444` | `#FEE2E2` (15% alpha) | Battery < 20%, delete confirmation, geofence breaches |
+2. **Strict Component Placement & Information Architecture**:
+   - **No Misplaced Components**: Each screen has a single, well-defined operational responsibility:
+     - **`MapScreen` (`map`)**: Live spatial tracking, multi-device filtering, geofence drawing/editing, and real-time device telemetry HUD.
+     - **`ProfileScreen` (`system/profile`)**: Dedicated **User Account & Security Profile** page (separated from `SettingsScreen`). Accessible directly by tapping the operator profile card in the Sidebar (`TraceAppDrawer`) or from the Settings overview header. Displays operator identity, UID copy, Role & Status badges, Local PIN Security status, Assigned Fleet & Effective Permissions summary, and Session Sign-Out.
+     - **`SettingsScreen` (`system/settings`)**: Dedicated exclusively to **Application Configuration**:
+       1. **Theme & Color Studio**: Theme Mode (`System`, `Dark`, `Light`), Material You **System Dynamic Colors** toggle, **Curated Accent Presets** (`Sapphire`, `Emerald`, `Violet`, `Amber`, `Rose`, `Cyan`), and an interactive **Custom Hue Color Slider** (`0°–360°`).
+       2. **Map Engine & Basemap Appearance**: Provider selection (`OpenStreetMap`, `Esri World Imagery`, `CARTO`, `Google Maps`) and style themes.
+       3. **Offline Maps & Tile Cache**: Offline tile storage controls, auto-cache toggle, storage quota bar, region downloader, and saved region manager.
+       4. **Touch Gestures & Onboarding**: Interactive Gesture Coach replay trigger and system version link to `UpdatesScreen`.
+     - **`DevicesScreen` (`devices`)**: Fleet directory, search, status filtering, Wake/Sleep command dispatch, and 1-tap service handoff (`Map`, `Cam`, `Audio`, `Screen`, `Files`) that automatically locks `DeviceSelectionManager` onto that device.
+     - **`AlertsScreen` (`alerts`)**: Perimeter breach & security alert feed with severity filtering, **swipe-to-acknowledge** gesture on individual alert cards, and batch `"Ack All"` confirmation modal.
+     - **`DiagnosticsScreen` (`diagnostics`)**: Real-time subsystem health probes, active vs. standby fleet counters, and security posture audit.
+     - **`CameraScreen`, `AudioScreen`, `ScreenCaptureScreen`, `FilesScreen`**: Dedicated remote WebRTC/command service consoles with unified device switcher headers and connection state banners.
+     - **`UsersScreen`, `PermissionsScreen`, `AuditLogScreen`**: Integrated Administration Suite with a unified top navigation switcher allowing seamless switching between **Users**, **RBAC Matrix (Permissions)**, and **Security Audit Trail** without dead-end screens.
+     - **`UpdatesScreen` (`system/updates`)**: Release channel verification, SHA-256 package verification, and OTA installation progress.
 
 ---
 
-## 3. Curvature & Geometry Hierarchy (Corner Radii)
+## 2. Map Focus & Multi-Selection State Machine Rules
 
-To prevent visual discordance, all UI elements must use the canonical curvature scale:
+### Rule 1: Returning to Map from Another Screen
+- `MapViewModel` is scoped at the Activity / host level and persists `lastFocusedDeviceId` and `lastCameraPosition` in `MapPreferencesRepository`.
+- When the user navigates to another page (`Devices`, `Settings`, `Alerts`, etc.) and returns to `MapScreen`:
+  - If the user was focused on a specific device (`selectedMarker != null`), the map **retains focus on that exact device** and keeps its telemetry card synchronized—never snapping back to `activeMarkers.first()`.
+  - If the user explicitly dismissed the telemetry card (`selectedMarker == null`) while viewing `All Trackers`, returning to the map preserves their last camera viewport without forcing an unwanted device card open.
 
-| Level | Radius | Applied To |
-|:---|:---|:---|
-| **Outer Floating Card** | **`20.dp`** | `DeviceSelectionSheet`, `DeviceTelemetryCard`, `GeofenceListSheet`, `GeofenceEditorHud` (Bottom Card) |
-| **Inner Tile / Row** | **`12.dp`** | Device item rows, "All Trackers" tile, Geofence item rows, Mode switch capsule |
-| **Action Button** | **`10.dp` - `12.dp`** | "Focus" button, "Update Perimeter" button, "Save" button |
-| **Micro Badge / Tag** | **`6.dp`** | Device count chips, Location state badges (`LIVE`, `STALE`), Telemetry units |
-| **Capsule / Pill** | **`24.dp`** | Center top bar device selector, Drawing HUD status pill, Mode switch pills |
-| **Icon / Circle Action** | `CircleShape` | Close buttons, status dots, color picker chips, checkmark badges |
-
----
-
-## 4. Elevation & Shadow Tokens
-
-- **Floating Overlay Sheets**: `elevation = 8.dp` - `10.dp` (provides high contrast separation against map tiles).
-- **Top Bar & Action Buttons**: `shadowElevation = 4.dp` - `6.dp`.
-- **Inner Tiles**: `0.dp` (flat surface embedded within the card container).
+### Rule 2: Strict Multi-Selection Filtering & Auto-Switching
+- When `DeviceSelection` is `All`: `activeMarkers` contains all devices; the bottom telemetry pager swipes across all devices.
+- When `DeviceSelection` is `Multiple(selectedIds)` (e.g., 2 out of 3 devices selected):
+  - Only the selected devices appear on the map and in the bottom telemetry pager (`displayMarkers = activeMarkers`). Unselected devices (e.g., Device 3) are **completely excluded** from the telemetry pager.
+  - If the user is currently viewing Device 3's telemetry card and deselects Device 3 in Multi-select mode, the state machine **immediately switches `selectedMarker` to the first remaining selected device** (e.g., Device 1 or Device 2) and smoothly animates the map camera to the newly focused device.
 
 ---
 
-## 5. Spacing & Padding System (8-Point Rhythm)
+## 3. Dynamic Theme & Color Studio Specification
 
-- **Card Outer Horizontal Margin**: `12.dp`
-- **Card Inner Padding**: `16.dp`
-- **Header-to-Content Spacing**: `12.dp`
-- **Section Spacing**: `14.dp`
-- **Vertical Spacing Between List Items**: `8.dp`
-- **Tile Inner Padding**: `horizontal = 14.dp, vertical = 10.dp`
-- **Icon-to-Text Gap**: `8.dp`
-- **Minimum Touch Target**: `48.dp` for primary actions; `32.dp` icon buttons nested within padded touch containers.
+| Token / Setting | Options | Persistence Key |
+| :--- | :--- | :--- |
+| **Theme Mode** | `SYSTEM`, `DARK`, `LIGHT` | `pref_theme_mode` |
+| **Dynamic System Colors** | `Boolean` (Android 12+ Material You Wallpaper extraction) | `pref_theme_dynamic_color` |
+| **Accent Preset** | `SAPPHIRE`, `EMERALD`, `VIOLET`, `AMBER`, `ROSE`, `CYAN`, `CUSTOM` | `pref_theme_accent_preset` |
+| **Custom Accent Hue** | `Float` (`0f..360f` HSV Hue for full user-controlled color customization) | `pref_theme_custom_hue` |
 
----
-
-## 6. Typography Scale
-
-- **Card Header Title**: `MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)` (16sp)
-- **Item Primary Name**: `MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)` (14sp)
-- **Item Secondary / Subtitle**: `MaterialTheme.typography.bodySmall` / `labelSmall` (11-12sp, `onSurfaceVariant`)
-- **Telemetry Value**: `MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp)`
-- **Telemetry Label (Overline)**: `MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 10.sp)`
-- **Coordinates (GPS)**: `MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)`
-- **Micro Badges**: `MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp - 11.sp)`
+All color scheme transitions use `animateColorAsState(tween(280))` inside `TraceTheme` so switching themes or dragging the custom color slider updates the entire UI at 60 FPS without recreation lag.
 
 ---
 
-## 7. Component Structure & Templates
+## 4. Synchronized Motion & Mobile Gesture System
 
-### A. Floating Outer Card Template
-```kotlin
-Card(
-    modifier = modifier
-        .fillMaxWidth()
-        .padding(horizontal = 12.dp),
-    shape = RoundedCornerShape(20.dp),
-    colors = CardDefaults.cardColors(
-        containerColor = MaterialTheme.colorScheme.surface
-    ),
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-) {
-    Column(modifier = Modifier.padding(16.dp)) {
-        // Card Content
-    }
-}
-```
+### Choreographed Animations
+1. **Dynamic Island Morphing**: `AnimatedContent` with spring scale + fade when tracker selection state changes.
+2. **Telemetry Card Pager Physics**: `graphicsLayer` page offset interpolation (subtle `0.94f -> 1.0f` scale and `0.7f -> 1.0f` alpha during horizontal swipe) + synchronized camera fly-to (`650ms`).
+3. **Interactive First-Time Gesture Coach (`GestureOnboardingOverlay`)**:
+   - Launches automatically on first visit to `MapScreen` (`pref_has_seen_gesture_coach = false`) and can be replayed anytime via the `?` help button in `MapTopBar` or from `SettingsScreen`.
+   - Guides the user through 3 interactive mobile gesture cards with animated vector motion indicators:
+     1. **Top Dynamic Island Gestures**: Tap to select Single/Multi trackers, or swipe left/right on the capsule to quick-switch devices.
+     2. **Bottom Telemetry Pager Gestures**: Swipe left/right between selected trackers, swipe down to dismiss the card, or double-tap to zoom in close.
+     3. **Map & Alert Gestures**: Tap markers to inspect, long-press geofence zones to edit boundaries, and swipe alerts to acknowledge.
 
-### B. Inner Interactive Tile Template
-```kotlin
-val tileBg by animateColorAsState(
-    targetValue = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-    },
-    label = "TileBg"
-)
-
-Surface(
-    shape = RoundedCornerShape(12.dp),
-    color = tileBg,
-    border = BorderStroke(
-        1.dp,
-        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-    ),
-    modifier = Modifier
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(12.dp))
-        .clickable(onClick = onClick)
-) {
-    Row(
-        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Tile Content
-    }
-}
-```
-
-### C. Standard Micro Status Badge
-```kotlin
-Surface(
-    shape = RoundedCornerShape(6.dp),
-    color = statusColor.copy(alpha = 0.15f)
-) {
-    Text(
-        text = statusLabel,
-        style = MaterialTheme.typography.labelSmall.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 10.sp
-        ),
-        color = statusColor,
-        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-    )
-}
-```
-
----
-
-## 8. Anti-Patterns to Avoid
-1. **Never use ad-hoc corner radii**: Avoid mixing `14.dp`, `18.dp`, and `22.dp` randomly. All cards are `20.dp`; all tiles are `12.dp`; all badges are `6.dp`.
-2. **Never use pure black or pure white un-themed surfaces**: Always bind to `MaterialTheme.colorScheme.surface` and `surfaceVariant`.
-3. **Never hardcode raw hex values in components**: Use defined color tokens from `Color.kt` and `Theme.kt`.
-4. **Never omit exit animations**: All cards must transition smoothly with `AnimatedVisibility(slideIn + fadeIn / slideOut + fadeOut)`.
-5. **Never use emojis as icons**: Always use Google Material Icons or Android Vector Drawables.
+### Curvature & Touch Ergonomics Contract
+- **Outer Cards / Modals / Sheets**: `20.dp` rounded corners (`RoundedCornerShape(20.dp)`), `1.dp` hairline border (`outlineVariant.copy(alpha = 0.35f)`).
+- **Inner Interactive Tiles / Buttons / Inputs**: `12.dp` rounded corners (`RoundedCornerShape(12.dp)`).
+- **Status Badges**: `6.dp` rounded corners (`RoundedCornerShape(6.dp)`).
+- **Floating HUD Capsules**: `24.dp`–`26.dp` pill geometry.
+- **Touch Targets**: Minimum `40.dp`–`48.dp` on all interactive buttons, icons, and gesture handles.

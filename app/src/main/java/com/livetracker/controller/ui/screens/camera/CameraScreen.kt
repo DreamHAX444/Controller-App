@@ -717,19 +717,19 @@ private fun ViewfinderStreamingContent(
 
                 Surface(
                     shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.40f)
+                    color = Color.Black.copy(alpha = 0.45f)
                 ) {
                     IconButton(
                         onClick = onToggleFullScreen,
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(36.dp)
                             .testTag(CameraTestTags.BTN_FULLSCREEN)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Fullscreen,
                             contentDescription = "Full Screen",
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -1146,7 +1146,7 @@ private fun CameraSensorSelectorCard(
                     onClick = onReloadCameras,
                     enabled = !uiState.isReloadingCameras && uiState.selectedTrackerId != null,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(42.dp)
                         .testTag(CameraTestTags.BTN_RELOAD_CAMERAS)
                 ) {
                     Icon(

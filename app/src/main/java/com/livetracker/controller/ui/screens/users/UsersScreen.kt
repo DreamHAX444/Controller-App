@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -260,7 +261,7 @@ fun UsersScreen(
                     Text(
                         text = "Are you sure you want to change '${targetUser.displayName}' (${targetUser.email}) to ${targetStatus.name}? The account will immediately be restricted from accessing the operational fleet.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFCBD5E1)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 confirmButton = {
@@ -282,7 +283,7 @@ fun UsersScreen(
                 },
                 containerColor = TacticalCard,
                 tonalElevation = 6.dp,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(20.dp)
             )
         }
 
@@ -310,7 +311,7 @@ fun UsersScreen(
                     Text(
                         text = "Are you sure you want to permanently delete '${userToDelete.displayName}' (${userToDelete.email})?\n\nThis will remove all associated permissions, device assignments, and account data. This action cannot be undone.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFCBD5E1)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 confirmButton = {
@@ -339,7 +340,7 @@ fun UsersScreen(
                 },
                 containerColor = TacticalCard,
                 tonalElevation = 6.dp,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(20.dp)
             )
         }
     }
@@ -387,7 +388,7 @@ private fun UsersHeader(
 
         IconButton(
             onClick = onRefresh,
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(40.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Refresh,
@@ -408,7 +409,9 @@ private fun FilterChipsRow(
     onSelectFilter: (UserFilter) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilterChip(
@@ -508,7 +511,7 @@ private fun UserCard(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = TacticalCard,
         border = BorderStroke(1.dp, TacticalBorder),
         modifier = modifier.fillMaxWidth()
@@ -832,7 +835,7 @@ private fun MetricChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = Color(0xFFCBD5E1)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -880,7 +883,7 @@ private fun AccessDeniedView(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             color = TacticalCard,
             border = BorderStroke(1.dp, TacticalBorder),
             modifier = Modifier.fillMaxWidth()
@@ -957,7 +960,7 @@ private fun UserManagementDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             color = TacticalSurface,
             border = BorderStroke(1.dp, TacticalBorder),
             modifier = Modifier
@@ -1004,7 +1007,7 @@ private fun UserManagementDialog(
                         }
                     }
 
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -1095,7 +1098,7 @@ private fun UserManagementDialog(
                                                 selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                                                 selectedLabelColor = MaterialTheme.colorScheme.primary,
                                                 containerColor = TacticalSurface,
-                                                labelColor = Color(0xFFCBD5E1),
+                                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 disabledContainerColor = TacticalSurface.copy(alpha = 0.5f),
                                                 disabledLabelColor = MaterialTheme.colorScheme.outline
                                             )
@@ -1170,7 +1173,7 @@ private fun UserManagementDialog(
                                                 selectedLabelColor = when (statusOption) {
                                                     AccountStatus.ACTIVE -> StatusLive
                                                     AccountStatus.SUSPENDED -> StatusError
-                                                    else -> Color(0xFFCBD5E1)
+                                                    else -> MaterialTheme.colorScheme.onSurface
                                                 },
                                                 containerColor = TacticalSurface,
                                                 labelColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1236,7 +1239,7 @@ private fun UserManagementDialog(
                                     Text(
                                         text = "Administrators inherently possess unrestricted access to all connected fleet devices with all permissions active (Location, Camera, Audio, Screen, Files, Commands). Manual device assignment is not required.",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFFCBD5E1),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(10.dp)
                                     )
                                 }
@@ -1577,7 +1580,7 @@ private fun AssignedDeviceItem(
 
                 IconButton(
                     onClick = onUnassign,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
@@ -1594,7 +1597,7 @@ private fun AssignedDeviceItem(
             Text(
                 text = "Feature Permissions",
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = Color(0xFFCBD5E1)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(6.dp))

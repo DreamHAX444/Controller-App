@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.livetracker.controller.alert.ActiveAlarmState
+import com.livetracker.controller.ui.theme.StatusError
 
 /**
  * High-visibility in-app tactical alarm modal dialog.
@@ -98,13 +99,13 @@ fun PerimeterBreachDialog(
                         .size(72.dp)
                         .scale(pulseScale)
                         .clip(CircleShape)
-                        .background(Color(0xFFFEE2E2)),
+                        .background(StatusError.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = "Breach Alarm",
-                        tint = Color(0xFFDC2626),
+                        tint = StatusError,
                         modifier = Modifier.size(40.dp)
                     )
                 }
@@ -118,7 +119,7 @@ fun PerimeterBreachDialog(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.2.sp
                     ),
-                    color = Color(0xFFDC2626)
+                    color = StatusError
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -200,8 +201,8 @@ fun PerimeterBreachDialog(
                 // Countdown Timer Pill
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFFFEF2F2),
-                    border = BorderStroke(1.dp, Color(0xFFFCA5A5))
+                    color = StatusError.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, StatusError.copy(alpha = 0.4f))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -210,14 +211,14 @@ fun PerimeterBreachDialog(
                         Icon(
                             imageVector = Icons.Default.NotificationsActive,
                             contentDescription = "Siren playing",
-                            tint = Color(0xFFDC2626),
+                            tint = StatusError,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Auto-stops in ${alarm.timeRemainingSeconds}s",
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color(0xFFDC2626)
+                            color = StatusError
                         )
                     }
                 }
