@@ -40,10 +40,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,7 +70,7 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
-    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var uidCopied by remember { mutableStateOf(false) }
     var isSyncingPermissions by remember { mutableStateOf(false) }
@@ -216,7 +218,8 @@ fun ProfileScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                clipboardManager.setText(AnnotatedString(userId))
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                clipboard?.setPrimaryClip(ClipData.newPlainText("Operator UID", userId))
                                 uidCopied = true
                                 coroutineScope.launch {
                                     delay(2000L)

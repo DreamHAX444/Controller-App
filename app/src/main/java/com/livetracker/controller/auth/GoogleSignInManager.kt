@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.livetracker.controller.auth
 
 import android.app.Activity

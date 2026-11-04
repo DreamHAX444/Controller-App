@@ -210,7 +210,9 @@ fun TraceTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
+                @Suppress("DEPRECATION")
                 window.statusBarColor = Color.Transparent.toArgb()
+                @Suppress("DEPRECATION")
                 window.navigationBarColor = Color.Transparent.toArgb()
                 val insetsController = WindowCompat.getInsetsController(window, view)
                 insetsController.isAppearanceLightStatusBars = !effectiveDark

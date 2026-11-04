@@ -259,7 +259,7 @@ class EdgeFunctionCommandGateway(
         val bodyJson = json.encodeToString(CommandSubmissionRequest.serializer(), requestPayload)
 
         return try {
-            var response: GatewayHttpResponse? = null
+            var response: GatewayHttpResponse
 
             try {
                 response = if (useDirectFallback && fallbackBaseUrl != null) {
@@ -306,7 +306,7 @@ class EdgeFunctionCommandGateway(
                 throw t
             }
 
-            if (enableDirectAutonomousFallback && (response == null || response.statusCode == 404 || response.statusCode in 401..403 || response.statusCode in 500..599)) {
+            if (enableDirectAutonomousFallback && (response.statusCode == 404 || response.statusCode in 401..403 || response.statusCode in 500..599)) {
                 return executeDirectAutonomousSubmission(
                     command = command,
                     wireCommandName = wireCommandName,

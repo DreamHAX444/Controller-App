@@ -104,6 +104,7 @@ class DefaultFileTransferRepository(
         deferred?.complete(ack)
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private suspend fun awaitCommandPayload(
         cmdId: String,
         existingDeferred: CompletableDeferred<CommandAckEnvelope>? = null,

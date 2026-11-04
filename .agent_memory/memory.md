@@ -4,9 +4,20 @@
 Continuous log of changes, tasks, decisions, and progress for the Controller App.
 
 ## Active Phase
-- **Phase**: Production Release Assembly & Artifact Verification (Trace Controller v0.2.0)
-- **Status**: **COMPLETE, VERIFIED & SIGNED (V1 & V2 APK SIGNER PASS, 100% SUCCESSFUL)**
+- **Phase**: Zero-Warning Compiler & Gradle Build Hardening + Production Release Assembly (Trace Controller v0.2.0)
+- **Status**: **COMPLETE, VERIFIED & ZERO WARNINGS**
 - **Next Phase / Step**: Production Distribution / GitHub Release Publish
+
+## 2026-11-03 - Zero-Warning Kotlin & Gradle Build Cleanup
+- **User Request**: "fix all the errors and warnings"
+- **Resolved Warnings & Deprecations**:
+  1. **Gradle Kotlin Compiler Options (`core/build.gradle.kts`, `app/build.gradle.kts`)**: Migrated deprecated `kotlinOptions { jvmTarget = "17" }` to the modern `kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }` DSL, eliminating Gradle 10 deprecation warnings.
+  2. **Gradle Incubating Feature (`gradle.properties`)**: Removed incubating `org.gradle.configureondemand=true` flag.
+  3. **Smart-Cast Redundant Condition (`EdgeFunctionCommandGateway.kt`)**: Removed always-false `response == null` check where `response` is guaranteed non-null after the inner try/catch block.
+  4. **Coroutines Opt-In (`DefaultFileTransferRepository.kt`)**: Added `@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)` to `awaitCommandPayload()` for `ackDeferred.getCompleted()`.
+  5. **Legacy Play Services Auth Fallback (`GoogleSignInManager.kt`)**: Added `@file:Suppress("DEPRECATION")` for the intentional Tier-2 Play Services `GoogleSignIn` fallback client.
+  6. **Clipboard API (`ProfileScreen.kt`)**: Replaced deprecated `LocalClipboardManager` with native Android `ClipboardManager` (`ClipData.newPlainText`).
+  7. **System Bar Colors (`Theme.kt`)**: Added `@Suppress("DEPRECATION")` on legacy `Window.statusBarColor` and `Window.navigationBarColor` assignments.
 
 ## 2026-11-03 - One-Click GitHub Codebase Synchronizer Script (`sync.bat`)
 - **User Request**: "তুমি আমাকে একটা স্ক্রিপ্ট বানায়া দাও যেটা এই কাজটা করবে, যাতে বারবার তোমার থেকে ইয়া নেওয়া, তোমার টোকেন না খরচ হয়।"
