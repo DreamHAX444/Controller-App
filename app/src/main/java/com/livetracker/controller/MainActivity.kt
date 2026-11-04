@@ -234,8 +234,13 @@ class MainActivity : ComponentActivity() {
                 }
                 if (modelClass.isAssignableFrom(com.livetracker.controller.ui.screens.diagnostics.DiagnosticsViewModel::class.java)) {
                     return com.livetracker.controller.ui.screens.diagnostics.DiagnosticsViewModel(
+                        application = app,
                         trackerDeviceRepository = app.trackerDeviceRepository,
-                        alertRepository = app.alertRepository
+                        alertRepository = app.alertRepository,
+                        geoFenceRepository = app.geoFenceRepository,
+                        sessionRepository = app.sessionRepository,
+                        networkStateProvider = app.networkStateProvider,
+                        webRtcSessionManager = app.webRtcSessionManager
                     ) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")

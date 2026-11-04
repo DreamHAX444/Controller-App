@@ -191,7 +191,14 @@ fun MainShellScreen(
         }
     ) {
         Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(bottom = if (isMap) 188.dp else 84.dp)
+                )
+            },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 AnimatedVisibility(
@@ -218,7 +225,7 @@ fun MainShellScreen(
     val isAuditLogScreen = currentDestination?.route == Destination.AuditLog.route
                     Column(modifier = Modifier.fillMaxWidth()) {
                         TopAppBar(
-                            windowInsets = WindowInsets(0, 0, 0, 0),
+                            windowInsets = TopAppBarDefaults.windowInsets,
                             title = {
                                 if (isDevicesScreen) {
                                     Row(
@@ -515,7 +522,7 @@ fun MainShellScreen(
                         onRefreshAccess = onRefreshAccess,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = if (isMap) 16.dp else innerPadding.calculateTopPadding())
+                            .padding(top = if (isMap) 76.dp else innerPadding.calculateTopPadding())
                     )
                 }
 
@@ -535,7 +542,7 @@ fun MainShellScreen(
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .padding(
-                            top = if (!isMap) innerPadding.calculateTopPadding() + 8.dp else 40.dp,
+                            top = if (!isMap) innerPadding.calculateTopPadding() + 8.dp else 76.dp,
                             start = 12.dp,
                             end = 12.dp
                         )

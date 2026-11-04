@@ -1,7 +1,10 @@
 package com.livetracker.controller.ui.screens.map.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
@@ -37,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +65,14 @@ import com.livetracker.controller.ui.util.DeviceNameFormatter
 import kotlinx.coroutines.delay
 import java.util.Locale
 
+/**
+ * Minimalist, Sophisticated, and Premium Live Telemetry Card.
+ * Designed strictly around UI/UX Pro Max and Ponytail guidelines:
+ * - Pure telemetry intelligence: battery, velocity, precision, link, and coordinates.
+ * - Zero empty/dead action states; RBAC-agnostic and clean.
+ * - 1-tap copy coordinates to clipboard with feedback badge.
+ * - Tactile spring drag-to-dismiss and double-tap zoom gestures.
+ */
 @Composable
 fun DeviceTelemetryCard(
     marker: MapMarker,
@@ -77,6 +90,18 @@ fun DeviceTelemetryCard(
         while (true) {
             delay(1000L)
             nowMillis = System.currentTimeMillis()
+        }
+    }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboardManager = remember(context) {
+        context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+    }
+    var copiedCoords by remember { mutableStateOf(false) }
+    LaunchedEffect(copiedCoords) {
+        if (copiedCoords) {
+            delay(2200L)
+            copiedCoords = false
         }
     }
 
@@ -130,7 +155,7 @@ fun DeviceTelemetryCard(
                 detectVerticalDragGestures(
                     onDragStart = { verticalDragDelta = 0f },
                     onDragEnd = {
-                        if (verticalDragDelta > 68f) {
+                        if (verticalDragDelta > 64f) {
                             onDismiss()
                         }
                         verticalDragDelta = 0f
@@ -153,19 +178,19 @@ fun DeviceTelemetryCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 11.dp)
         ) {
-            // Top Pager Dots / Gesture Grab Handle
+            // Top Grab Handle / Pager Dots
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                    .padding(bottom = 6.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -178,8 +203,8 @@ fun DeviceTelemetryCard(
                             val isCurrent = i == deviceIndex
                             Box(
                                 modifier = Modifier
-                                    .height(5.dp)
-                                    .width(if (isCurrent) 18.dp else 5.dp)
+                                    .height(4.dp)
+                                    .width(if (isCurrent) 16.dp else 5.dp)
                                     .clip(CircleShape)
                                     .background(
                                         if (isCurrent) MaterialTheme.colorScheme.primary
@@ -194,12 +219,12 @@ fun DeviceTelemetryCard(
                             .width(32.dp)
                             .height(4.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f))
                     )
                 }
             }
 
-            // Header Row: Status Dot + Name + Status Badge + Controls
+            // Header Row: Status Beacon + Friendly Name + Status Pill + Recenter & Dismiss
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -211,21 +236,22 @@ fun DeviceTelemetryCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(9.dp)
                             .clip(CircleShape)
                             .background(statusColor)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(9.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
                         ) {
                             Text(
                                 text = friendlyName,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
+                                    fontSize = 15.5.sp,
+                                    letterSpacing = 0.2.sp
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
@@ -234,23 +260,23 @@ fun DeviceTelemetryCard(
                             )
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = statusColor.copy(alpha = 0.16f),
-                                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.4f))
+                                color = statusColor.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.40f))
                             ) {
                                 Text(
                                     text = statusLabel,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp
+                                        fontSize = 9.5.sp
                                     ),
                                     color = statusColor,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
                                 )
                             }
                         }
                         Text(
                             text = "Updated $relativeTimeText",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -266,35 +292,35 @@ fun DeviceTelemetryCard(
                         IconButton(
                             onClick = { onPreviousDevice?.invoke() },
                             enabled = onPreviousDevice != null,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(30.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                                 contentDescription = "Previous Tracker",
                                 tint = if (onPreviousDevice != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                         IconButton(
                             onClick = { onNextDevice?.invoke() },
                             enabled = onNextDevice != null,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(30.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = "Next Tracker",
                                 tint = if (onNextDevice != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                     }
 
                     // Center Camera Button
                     Surface(
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(34.dp),
                         shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                     ) {
                         Box(
                             modifier = Modifier
@@ -306,7 +332,7 @@ fun DeviceTelemetryCard(
                                 imageVector = Icons.Default.LocationOn,
                                 contentDescription = "Center on Map",
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                     }
@@ -314,24 +340,24 @@ fun DeviceTelemetryCard(
                     // Dismiss Card Button
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(30.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close Telemetry Card",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 10.dp),
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                modifier = Modifier.padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
             )
 
-            // Telemetry Bento Metrics Row (Zero "null" or "N/A" strings)
+            // Telemetry Bento Metrics Row (Battery, Velocity, Precision, Link)
             val batteryVal = marker.batteryLevel
             val batteryText = if (batteryVal != null && batteryVal in 0..100) "$batteryVal%" else "Standby"
             val batteryColor = when {
@@ -362,7 +388,7 @@ fun DeviceTelemetryCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
                 TelemetryMetricPill(
                     label = "BATTERY",
@@ -373,7 +399,7 @@ fun DeviceTelemetryCard(
                 TelemetryMetricPill(
                     label = "VELOCITY",
                     value = speedText,
-                    valueColor = MaterialTheme.colorScheme.onSurface,
+                    valueColor = if (speedKmh >= 0.5f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
                 TelemetryMetricPill(
@@ -390,22 +416,65 @@ fun DeviceTelemetryCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(7.dp))
 
-            // Footer: Monospace Coordinates + Gesture Hint
+            // Footer: Monospace Coordinates (1-Tap Copy) + Gesture Hint
+            val formattedCoords = String.format(Locale.US, "%.5f, %.5f", marker.latitude, marker.longitude)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = String.format(Locale.US, "%.5f, %.5f", marker.latitude, marker.longitude),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (copiedCoords) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable {
+                            val clip = android.content.ClipData.newPlainText("Coordinates", formattedCoords)
+                            clipboardManager?.setPrimaryClip(clip)
+                            copiedCoords = true
+                        }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = formattedCoords,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.5.sp,
+                                letterSpacing = 0.3.sp
+                            ),
+                            color = if (copiedCoords) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        AnimatedVisibility(
+                            visible = copiedCoords,
+                            enter = fadeIn(tween(150)),
+                            exit = fadeOut(tween(150))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Copied",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = "Copied",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Text(
                     text = if (totalDeviceCount > 1) {
@@ -413,8 +482,10 @@ fun DeviceTelemetryCard(
                     } else {
                         "Double-tap zoom • Swipe ↓ close"
                     },
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -430,22 +501,22 @@ private fun TelemetryMetricPill(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+        shape = RoundedCornerShape(11.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 9.5.sp,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.5.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 maxLines = 1
             )
             Spacer(modifier = Modifier.height(2.dp))
@@ -453,7 +524,7 @@ private fun TelemetryMetricPill(
                 text = value,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+                    fontSize = 11.5.sp
                 ),
                 color = valueColor,
                 maxLines = 1,

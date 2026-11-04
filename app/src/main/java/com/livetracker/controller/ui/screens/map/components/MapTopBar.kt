@@ -14,8 +14,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
@@ -191,12 +198,43 @@ fun MapTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(9.dp)
-                            .clip(CircleShape)
-                            .background(statusDotColor)
+                    val infiniteTransition = rememberInfiniteTransition(label = "LivePulse")
+                    val pulseScale by infiniteTransition.animateFloat(
+                        initialValue = 1.0f,
+                        targetValue = 1.6f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1200, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "pulseScale"
                     )
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 0.6f,
+                        targetValue = 0.0f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1200, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "pulseAlpha"
+                    )
+
+                    Box(contentAlignment = Alignment.Center) {
+                        if (liveCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .scale(pulseScale)
+                                    .clip(CircleShape)
+                                    .background(statusDotColor.copy(alpha = pulseAlpha))
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(statusDotColor)
+                        )
+                    }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(verticalArrangement = Arrangement.Center) {
                         Text(

@@ -35,12 +35,6 @@ android {
     }
 
     signingConfigs {
-        create("debugConfig") {
-            storeFile = file("${rootDir}/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
         create("release") {
             val keystorePath = project.findProperty("RELEASE_STORE_FILE") as? String
                 ?: System.getenv("RELEASE_STORE_FILE")
@@ -99,7 +93,7 @@ android {
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${localProperties.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""}\"")
         }
         debug {
-            signingConfig = signingConfigs.getByName("debugConfig")
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             buildConfigField("String", "UPDATE_MANIFEST_URL", "\"https://raw.githubusercontent.com/DreamHAX444/Controller-App/main/release/update-manifest.json\"")
             buildConfigField("String", "UPDATE_CHANNEL", "\"stable\"")

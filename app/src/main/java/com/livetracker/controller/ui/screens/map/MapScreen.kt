@@ -70,6 +70,8 @@ import com.livetracker.controller.ui.screens.map.components.DeviceSelectionSheet
 import com.livetracker.controller.ui.screens.map.components.DeviceTelemetryCard
 import com.livetracker.controller.ui.screens.map.components.GestureOnboardingOverlay
 import com.livetracker.controller.ui.screens.map.components.MapCanvas
+import com.livetracker.controller.ui.screens.map.components.MapFloatingControls
+import com.livetracker.controller.ui.screens.map.components.MapLayersSheet
 import com.livetracker.controller.ui.screens.map.components.MapTopBar
 import com.livetracker.controller.ui.screens.map.config.MapProvider
 import com.livetracker.controller.ui.screens.map.geofence.GeofenceEditorHud
@@ -111,6 +113,7 @@ fun MapScreen(
     val isTestingSound = activeAlarmState?.alertId?.startsWith("preview_") == true
 
     var showDeviceSelector by remember { mutableStateOf(false) }
+    var showLayerPicker by remember { mutableStateOf(false) }
     var showDiscardConfirmDialog by remember { mutableStateOf(false) }
     var hasRunIntroCameraAnimation by rememberSaveable { mutableStateOf(false) }
     var hudVisible by remember { mutableStateOf(false) }
@@ -139,7 +142,10 @@ fun MapScreen(
     }
 
     // Hardware & Gesture Back Button Hierarchy
-    BackHandler(enabled = showDeviceSelector) {
+    BackHandler(enabled = showLayerPicker) {
+        showLayerPicker = false
+    }
+    BackHandler(enabled = !showLayerPicker && showDeviceSelector) {
         showDeviceSelector = false
     }
     BackHandler(enabled = !showDeviceSelector && editorState is GeofenceEditorState.Editing) {
@@ -259,6 +265,40 @@ fun MapScreen(
         val target = selectedMarker ?: activeMarkers.firstOrNull()
         if (target != null) {
             focusOnCoordinate(target.latitude, target.longitude)
+        }
+    }
+
+    fun zoomIn() {
+        if (mapConfiguration.provider != MapProvider.GOOGLE_MAPS) {
+            osmMapView?.let { mapView ->
+                mapView.controller.zoomIn()
+                viewModel.saveCameraPosition(
+                    mapView.mapCenter.latitude,
+                    mapView.mapCenter.longitude,
+                    mapView.zoomLevelDouble
+                )
+            }
+        } else {
+            coroutineScope.launch {
+                googleCameraState.animate(CameraUpdateFactory.zoomIn(), 300)
+            }
+        }
+    }
+
+    fun zoomOut() {
+        if (mapConfiguration.provider != MapProvider.GOOGLE_MAPS) {
+            osmMapView?.let { mapView ->
+                mapView.controller.zoomOut()
+                viewModel.saveCameraPosition(
+                    mapView.mapCenter.latitude,
+                    mapView.mapCenter.longitude,
+                    mapView.zoomLevelDouble
+                )
+            }
+        } else {
+            coroutineScope.launch {
+                googleCameraState.animate(CameraUpdateFactory.zoomOut(), 300)
+            }
         }
     }
 
@@ -382,7 +422,7 @@ fun MapScreen(
             ) + fadeOut(tween(200))
         ) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 MapTopBar(
@@ -608,6 +648,35 @@ fun MapScreen(
                 }
             }
         }
+
+        // Tactical Floating Action Dock (Zoom In/Out, Recenter, Layer Quick Switcher)
+        AnimatedVisibility(
+            visible = hudVisible && editorState !is GeofenceEditorState.Editing && !showLayerPicker,
+            enter = fadeIn(tween(240)),
+            exit = fadeOut(tween(180)),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 14.dp)
+        ) {
+            MapFloatingControls(
+                onZoomIn = { zoomIn() },
+                onZoomOut = { zoomOut() },
+                onRecenter = { recenterOnAll() },
+                onOpenLayerPicker = { showLayerPicker = true }
+            )
+        }
+
+        // Basemap Appearance & Layer Switcher Modal
+        MapLayersSheet(
+            isVisible = showLayerPicker,
+            currentConfiguration = mapConfiguration,
+            onSelectConfiguration = { config ->
+                viewModel.setConfiguration(config)
+                showLayerPicker = false
+            },
+            onDismiss = { showLayerPicker = false },
+            modifier = Modifier.align(Alignment.Center)
+        )
 
         // 7. Minimal Empty / Loading State Indicator
         AnimatedVisibility(

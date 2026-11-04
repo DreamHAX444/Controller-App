@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.DrawerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -192,7 +193,7 @@ fun TraceAppDrawer(
         drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
         drawerContainerColor = MaterialTheme.colorScheme.surface,
         drawerTonalElevation = 0.dp,
-        windowInsets = WindowInsets(0.dp)
+        windowInsets = DrawerDefaults.windowInsets
     ) {
         Column(
             modifier = Modifier
