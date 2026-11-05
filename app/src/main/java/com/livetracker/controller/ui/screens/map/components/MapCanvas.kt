@@ -453,14 +453,17 @@ private fun OsmMapCanvasView(
 
             // High-performance incremental overlay reconciliation:
             // Avoids clearing and re-adding all overlays on every frame
+            val overlaySet = overlayList.toSet()
             val currentOverlays = mapView.overlays
-            val toRemove = currentOverlays.filter { it !in overlayList }
+            val toRemove = currentOverlays.filter { it !in overlaySet }
             if (toRemove.isNotEmpty()) {
                 currentOverlays.removeAll(toRemove)
                 hasChanges = true
             }
+
+            val currentOverlaySet = currentOverlays.toSet()
             overlayList.forEach { overlay ->
-                if (overlay !in currentOverlays) {
+                if (overlay !in currentOverlaySet) {
                     currentOverlays.add(overlay)
                     hasChanges = true
                 }
