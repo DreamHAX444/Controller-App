@@ -7,6 +7,13 @@ package com.livetracker.controller.ui.util
  */
 object DeviceNameFormatter {
 
+    private val MODEL_TAG_REGEX = Regex("\\s*\\([a-zA-Z0-9_-]+\\)\\s*")
+    private val SAMSUNG_MODEL_REGEX = Regex("(?i)Samsung\\s+SM-([A-Z0-9]+)")
+    private val SHORT_ID_TAG_REGEX = Regex("\\(([a-zA-Z0-9_-]{3,8})\\)")
+    private val CLEAN_MODEL_TAG_REGEX = Regex("\\(([a-zA-Z0-9_-]+)\\)")
+    private val SAMSUNG_CLEAN_REGEX = Regex("(?i)Samsung\\s+(?:SM-)?([A-Z])(\\d{1,2})\\d*([A-Z0-9]*)")
+    private val WHITESPACE_REGEX = Regex("\\s+")
+
     /**
      * Formats a device's display name and deviceId into a concise, readable string.
      * E.g.
@@ -54,11 +61,11 @@ object DeviceNameFormatter {
      */
     fun formatShortModel(model: String?): String {
         if (model.isNullOrBlank()) return "Android Tracker"
-        val trimmed = model.trim().replace(Regex("\\s*\\([a-zA-Z0-9_-]+\\)\\s*"), "").trim()
+        val trimmed = model.trim().replace(MODEL_TAG_REGEX, "").trim()
         if (trimmed.contains("sdk_gphone", ignoreCase = true) || trimmed.contains("emulator", ignoreCase = true)) {
             return "Pixel Emulator"
         }
-        val samsungMatch = Regex("(?i)Samsung\\s+SM-([A-Z0-9]+)").find(trimmed)
+        val samsungMatch = SAMSUNG_MODEL_REGEX.find(trimmed)
         if (samsungMatch != null) {
             return "SM-${samsungMatch.groupValues[1]}"
         }
@@ -76,7 +83,7 @@ object DeviceNameFormatter {
     fun formatShortId(deviceId: String?): String {
         if (deviceId.isNullOrBlank()) return "Unknown"
         val trimmed = deviceId.trim()
-        val tagMatch = Regex("\\(([a-zA-Z0-9_-]{3,8})\\)").find(trimmed)
+        val tagMatch = SHORT_ID_TAG_REGEX.find(trimmed)
         if (tagMatch != null) {
             return tagMatch.groupValues[1]
         }
@@ -95,8 +102,8 @@ object DeviceNameFormatter {
     }
 
     private fun cleanKnownModelStrings(name: String): String {
-        val suffixTag = Regex("\\(([a-zA-Z0-9_-]+)\\)").find(name)?.groupValues?.getOrNull(1)
-        val nameWithoutTag = name.replace(Regex("\\s*\\([a-zA-Z0-9_-]+\\)\\s*"), "").trim()
+        val suffixTag = CLEAN_MODEL_TAG_REGEX.find(name)?.groupValues?.getOrNull(1)
+        val nameWithoutTag = name.replace(MODEL_TAG_REGEX, "").trim()
 
         // 1. Emulators
         if (nameWithoutTag.contains("sdk_gphone", ignoreCase = true)) {
@@ -107,8 +114,7 @@ object DeviceNameFormatter {
         }
 
         // 2. Samsung models: e.g. Samsung SM-A156M -> Samsung A15
-        val samsungRegex = Regex("(?i)Samsung\\s+(?:SM-)?([A-Z])(\\d{1,2})\\d*([A-Z0-9]*)")
-        val samsungMatch = samsungRegex.find(nameWithoutTag)
+        val samsungMatch = SAMSUNG_CLEAN_REGEX.find(nameWithoutTag)
         if (samsungMatch != null) {
             val series = samsungMatch.groupValues[1].uppercase()
             val number = samsungMatch.groupValues[2]
@@ -127,7 +133,7 @@ object DeviceNameFormatter {
     }
 
     private fun deduplicateWords(text: String): String {
-        val words = text.split(Regex("\\s+"))
+        val words = text.split(WHITESPACE_REGEX)
         val result = mutableListOf<String>()
         for (w in words) {
             if (result.isEmpty() || !result.last().equals(w, ignoreCase = true)) {
