@@ -19,9 +19,32 @@ Continuous log of changes, tasks, decisions, and progress for the Controller App
 
 
 ## Active Phase
-- **Phase**: Physical Redmi Device Deployment & Git Clean Sync
+- **Phase**: Physical Redmi Device Optimization & 24/7 Persistence
 - **Status**: **VERIFIED LIVE ON REDMI DEVICE (ce4hkfpznjgy8hp7)**
-- **Next Phase / Step**: Ready for user testing.
+- **Next Phase / Step**: Completed and ready for user inspection.
+
+## 2026-11-08 - Redmi Device Optimization, 24/7 Background Persistence & Network Lock
+- **User Feedback / Problem Statement**:
+  - Optimize the Redmi device (ce4hkfpznjgy8hp7).
+  - Keep Mobile Data always ON 24/7 ('no matter what').
+  - Ensure the Tracker App (com.example.livelocationservice) runs 24/7 in the background without being killed.
+  - Restrict heavy/non-essential background applications and optimize phone responsiveness.
+- **Engineering Deliverables**:
+  1. **Mobile Data Always-On**:
+     - Configured settings put global mobile_data 1, mobile_data_always_on 1, and data_roaming 1.
+     - Whitelisted Tracker App (UID 10299) and Controller App (UID 10300) in 
+etpolicy restrict-background-whitelist.
+  2. **Tracker App 24/7 Persistence**:
+     - Bound persistent ControlAccessibilityService (PROC_STATE_PERSISTENT, system protected).
+     - Whitelisted in dumpsys deviceidle whitelist (bypassing battery saver / Doze mode).
+     - Re-registered Device Admin (com.example.livelocationservice/.AdminReceiver).
+     - Set Standby Bucket to ctive (m set-standby-bucket com.example.livelocationservice active).
+     - Allowed MIUI Auto-Start AppOp 10008, RUN_IN_BACKGROUND, RUN_ANY_IN_BACKGROUND, START_FOREGROUND, and WAKE_LOCK.
+  3. **Background Apps Restriction & Phone Optimization**:
+     - Placed heavy games and utilities (com.dts.freefireth, jp.konami.pesam, com.daraz.android, com.intsig.camscanner, com.gamma.scan) into 
+estricted standby bucket and revoked RUN_IN_BACKGROUND.
+     - Set system animation scales to 0.5x for snappy UI response.
+     - Enabled Wi-Fi scan throttling and cleared cached background processes (m kill-all).
 
 ## 2026-11-08 - Redmi Device Deployment & Repository Hygiene
 - **User Feedback / Problem Statement**:
