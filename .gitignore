@@ -57,6 +57,14 @@ query
 /*.png
 *.pyc
 __pycache__/
+hs_err_pid*
+replay_pid*
+*.hprof
+*.tar.gz
+*.bak
+*.tmp
+*.swp
+.navigation/
 
 # OS artifacts
 .DS_Store

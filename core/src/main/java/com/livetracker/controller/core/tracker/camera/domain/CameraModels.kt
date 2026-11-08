@@ -30,12 +30,14 @@ data class CameraResolution(
         val VGA = CameraResolution(640, 480)
         val HD_720P = CameraResolution(1280, 720)
         val FULL_HD_1080P = CameraResolution(1920, 1080)
+        val ULTRA_HD_4K = CameraResolution(3840, 2160)
 
         val SUPPORTED_RESOLUTIONS: List<CameraResolution> = listOf(
             QVGA,
             VGA,
             HD_720P,
-            FULL_HD_1080P
+            FULL_HD_1080P,
+            ULTRA_HD_4K
         )
     }
 }

@@ -14,6 +14,9 @@ import com.livetracker.controller.core.tracker.recovery.NetworkState
 import com.livetracker.controller.core.tracker.webrtc.WebRtcSessionManager
 import com.livetracker.controller.network.AndroidNetworkStateProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,7 +55,9 @@ data class DiagnosticsUiState(
     val onlineTrackers: Int = 0,
     val subsystems: List<SubsystemStatus> = emptyList(),
     val overallStatusText: String = "PROBING SYSTEM...",
-    val statusMessage: String? = null
+    val statusMessage: String? = null,
+    val isAutoRefreshActive: Boolean = true,
+    val refreshTickCounter: Long = 0L
 ) {
     val cacheDisplaySize: String
         get() {
@@ -78,6 +83,7 @@ class DiagnosticsViewModel(
 
     private val _uiState = MutableStateFlow(DiagnosticsUiState())
     val uiState: StateFlow<DiagnosticsUiState> = _uiState.asStateFlow()
+    private var livePollingJob: Job? = null
 
     init {
         val (used, total, max) = readHeapMemory()
@@ -217,11 +223,45 @@ class DiagnosticsViewModel(
         rtt to typeName
     }
 
-    fun runDiagnostics() {
-        if (_uiState.value.isChecking) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isChecking = true) }
+    fun startLivePolling() {
+        if (livePollingJob?.isActive == true) return
+        _uiState.update { it.copy(isAutoRefreshActive = true) }
+        livePollingJob = viewModelScope.launch {
+            // Immediate initial probe on screen entry
+            runDiagnosticsInternal()
+            while (isActive) {
+                delay(4000L) // Telemetry poll cycle every 4 seconds
+                runDiagnosticsInternal()
+                _uiState.update { it.copy(refreshTickCounter = it.refreshTickCounter + 1) }
+            }
+        }
+    }
 
+    fun stopLivePolling() {
+        livePollingJob?.cancel()
+        livePollingJob = null
+        _uiState.update { it.copy(isAutoRefreshActive = false) }
+    }
+
+    fun toggleAutoRefresh() {
+        if (_uiState.value.isAutoRefreshActive) {
+            stopLivePolling()
+        } else {
+            startLivePolling()
+        }
+    }
+
+    fun runDiagnostics() {
+        viewModelScope.launch {
+            runDiagnosticsInternal()
+        }
+    }
+
+    private suspend fun runDiagnosticsInternal() {
+        if (_uiState.value.isChecking) return
+        _uiState.update { it.copy(isChecking = true) }
+
+        try {
             // 1. Probe real network latency & connection type
             val (measuredPing, netType) = probeNetworkRtt()
             val isOnline = measuredPing >= 0L
@@ -251,6 +291,8 @@ class DiagnosticsViewModel(
             }
 
             evaluateSubsystems()
+        } catch (_: Exception) {
+            _uiState.update { it.copy(isChecking = false) }
         }
     }
 
@@ -402,5 +444,10 @@ class DiagnosticsViewModel(
                 cacheFilesCount = cacheCount
             )
         }
+    }
+    override fun onCleared() {
+        super.onCleared()
+        livePollingJob?.cancel()
+        livePollingJob = null
     }
 }

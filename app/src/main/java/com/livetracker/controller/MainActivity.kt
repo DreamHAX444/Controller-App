@@ -166,7 +166,9 @@ class MainActivity : ComponentActivity() {
                 if (modelClass.isAssignableFrom(com.livetracker.controller.ui.screens.alerts.AlertsViewModel::class.java)) {
                     return com.livetracker.controller.ui.screens.alerts.AlertsViewModel(
                         alertRepository = app.alertRepository,
-                        trackerDeviceRepository = app.trackerDeviceRepository
+                        trackerDeviceRepository = app.trackerDeviceRepository,
+                        sirenAlertEngine = app.sirenAlertEngine,
+                        alertPreferencesRepository = app.alertPreferencesRepository
                     ) as T
                 }
                 if (modelClass.isAssignableFrom(com.livetracker.controller.ui.screens.settings.SettingsViewModel::class.java)) {

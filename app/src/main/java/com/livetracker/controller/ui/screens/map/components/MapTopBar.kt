@@ -1,9 +1,18 @@
 package com.livetracker.controller.ui.screens.map.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,15 +23,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationOn
@@ -39,7 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -53,6 +59,15 @@ import com.livetracker.controller.ui.theme.StatusIdle
 import com.livetracker.controller.ui.theme.StatusOffline
 import com.livetracker.controller.ui.util.DeviceNameFormatter
 
+/**
+ * Minimalist Aerospace Dynamic Island Top HUD.
+ * Recreated with UI/UX Pro Max Minimalism guidelines:
+ * - Ultra-compact 42dp vertical footprint maximizing visible map canvas.
+ * - Frosted micro-glassmorphism (alpha 0.88) with 0.75dp hairline border.
+ * - Live radar pulse beacon on active telemetry.
+ * - Horizontal swipe on island to cycle trackers.
+ * - Geofence perimeter launcher with active count badge.
+ */
 @Composable
 fun MapTopBar(
     deviceSelection: DeviceSelection,
@@ -109,16 +124,16 @@ fun MapTopBar(
         if (!focusedDeviceName.isNullOrBlank() && deviceSelection !is DeviceSelection.Single) {
             "Focused: $focusedDeviceName"
         } else if (activeDevices.size > 1) {
-            "$liveCount Live • Swipe ⇄ to switch"
+            "$liveCount Live • Swipe ⇄"
         } else if (liveCount > 0) {
             "Live Telemetry Active"
         } else {
-            "Tap to filter fleet"
+            "Tap to select"
         }
     }
 
-    val glassSurface = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
-    val glassBorder = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+    val glassSurface = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+    val glassBorder = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
     var cumulativeDrag by remember { mutableFloatStateOf(0f) }
 
     Row(
@@ -132,44 +147,39 @@ fun MapTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: Floating Menu Button
-        Surface(
-            modifier = Modifier.size(46.dp),
-            shape = RoundedCornerShape(14.dp),
-            color = glassSurface,
-            border = BorderStroke(1.dp, glassBorder),
-            shadowElevation = 8.dp
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable { onOpenDrawer() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Open Menu",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
+        // 1. Navigation Drawer Launcher Button
+        TacticalIconButton(
+            icon = Icons.Default.Menu,
+            contentDescription = "Open Menu",
+            onClick = onOpenDrawer,
+            surfaceColor = glassSurface,
+            borderColor = glassBorder
+        )
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-        // Center: Dynamic Island Tracker Selector Capsule (Tap to open sheet, Swipe ⇄ to cycle trackers)
+        // 2. Center Dynamic Island Tracker Capsule
+        val islandInteractionSource = remember { MutableInteractionSource() }
+        val isIslandPressed by islandInteractionSource.collectIsPressedAsState()
+        val islandScale by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = if (isIslandPressed) 0.97f else 1.0f,
+            animationSpec = spring(dampingRatio = 0.75f, stiffness = 450f),
+            label = "islandScale"
+        )
+
         Surface(
             modifier = Modifier
                 .weight(1f)
-                .height(48.dp)
+                .height(42.dp)
+                .scale(islandScale)
                 .pointerInput(activeDevices.size) {
                     if (onSwipeTracker != null && activeDevices.size > 1) {
                         detectHorizontalDragGestures(
                             onDragStart = { cumulativeDrag = 0f },
                             onDragEnd = {
-                                if (cumulativeDrag > 52f) {
+                                if (cumulativeDrag > 48f) {
                                     onSwipeTracker(-1)
-                                } else if (cumulativeDrag < -52f) {
+                                } else if (cumulativeDrag < -48f) {
                                     onSwipeTracker(1)
                                 }
                                 cumulativeDrag = 0f
@@ -181,16 +191,21 @@ fun MapTopBar(
                         )
                     }
                 },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(21.dp),
             color = glassSurface,
-            border = BorderStroke(1.dp, glassBorder),
-            shadowElevation = 8.dp
+            border = BorderStroke(0.85.dp, glassBorder),
+            shadowElevation = 6.dp
         ) {
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { onOpenDeviceSelector() }
-                    .padding(horizontal = 14.dp),
+                    .clip(RoundedCornerShape(21.dp))
+                    .clickable(
+                        interactionSource = islandInteractionSource,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onOpenDeviceSelector
+                    )
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -198,31 +213,32 @@ fun MapTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "LivePulse")
+                    // Pulsing Status Dot
+                    val infiniteTransition = rememberInfiniteTransition(label = "TopLivePulse")
                     val pulseScale by infiniteTransition.animateFloat(
                         initialValue = 1.0f,
-                        targetValue = 1.6f,
+                        targetValue = 1.7f,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(1200, easing = FastOutSlowInEasing),
+                            animation = tween(1300, easing = FastOutSlowInEasing),
                             repeatMode = RepeatMode.Reverse
                         ),
-                        label = "pulseScale"
+                        label = "topPulseScale"
                     )
                     val pulseAlpha by infiniteTransition.animateFloat(
-                        initialValue = 0.6f,
+                        initialValue = 0.65f,
                         targetValue = 0.0f,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(1200, easing = FastOutSlowInEasing),
+                            animation = tween(1300, easing = FastOutSlowInEasing),
                             repeatMode = RepeatMode.Reverse
                         ),
-                        label = "pulseAlpha"
+                        label = "topPulseAlpha"
                     )
 
                     Box(contentAlignment = Alignment.Center) {
                         if (liveCount > 0) {
                             Box(
                                 modifier = Modifier
-                                    .size(9.dp)
+                                    .size(8.dp)
                                     .scale(pulseScale)
                                     .clip(CircleShape)
                                     .background(statusDotColor.copy(alpha = pulseAlpha))
@@ -230,18 +246,24 @@ fun MapTopBar(
                         }
                         Box(
                             modifier = Modifier
-                                .size(9.dp)
+                                .size(8.dp)
                                 .clip(CircleShape)
                                 .background(statusDotColor)
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(verticalArrangement = Arrangement.Center) {
+
+                    Spacer(modifier = Modifier.width(9.dp))
+
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = selectorLabel,
                             style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.5.sp
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                letterSpacing = 0.2.sp
                             ),
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -249,7 +271,10 @@ fun MapTopBar(
                         )
                         Text(
                             text = subtitleLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -260,60 +285,99 @@ fun MapTopBar(
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = "Select Tracker",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-        // Right: Floating Geofence Manager Button with active count badge
-        Surface(
-            modifier = Modifier.size(46.dp),
-            shape = RoundedCornerShape(14.dp),
-            color = if (geofenceCount > 0) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+        // 3. Geofence Perimeter Manager Launcher Button
+        TacticalIconButton(
+            icon = Icons.Default.LocationOn,
+            contentDescription = "Manage Geofences",
+            onClick = onOpenGeofences,
+            surfaceColor = if (geofenceCount > 0) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
             } else {
                 glassSurface
             },
-            border = BorderStroke(
-                width = 1.dp,
-                color = if (geofenceCount > 0) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f) else glassBorder
-            ),
-            shadowElevation = 8.dp
+            borderColor = if (geofenceCount > 0) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
+            } else {
+                glassBorder
+            },
+            iconTint = if (geofenceCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            badgeCount = if (geofenceCount > 0) geofenceCount else null
+        )
+    }
+}
+
+@Composable
+private fun TacticalIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    surfaceColor: Color,
+    borderColor: Color,
+    iconTint: Color = MaterialTheme.colorScheme.onSurface,
+    badgeCount: Int? = null,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 420f),
+        label = "btnScale"
+    )
+
+    Surface(
+        modifier = modifier
+            .size(42.dp)
+            .scale(scale),
+        shape = RoundedCornerShape(13.dp),
+        color = surfaceColor,
+        border = BorderStroke(0.85.dp, borderColor),
+        shadowElevation = 6.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(13.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClick = onClick
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable { onOpenGeofences() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = "Manage Geofences",
-                    tint = if (geofenceCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(21.dp)
-                )
-                if (geofenceCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 5.dp, end = 5.dp)
-                            .size(15.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = geofenceCount.coerceAtMost(9).toString(),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = iconTint,
+                modifier = Modifier.size(20.dp)
+            )
+
+            if (badgeCount != null && badgeCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 4.dp, end = 4.dp)
+                        .size(15.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = badgeCount.coerceAtMost(9).toString(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }

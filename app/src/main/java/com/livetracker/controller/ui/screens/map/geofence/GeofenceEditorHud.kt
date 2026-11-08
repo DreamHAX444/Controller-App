@@ -31,12 +31,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -46,7 +46,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -59,7 +58,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -80,15 +81,16 @@ val GEOFENCE_PRESET_COLORS = listOf(
     0xFF06B6D4.toInt()  // Cyan Teal
 )
 
-/** Common tactical presets for circle perimeter radius in meters */
+/** Tactical presets for circle perimeter radius in meters */
 val RADIUS_PRESETS_METERS = listOf(50.0, 100.0, 250.0, 500.0, 1000.0, 2000.0)
 
 /** Alarm duration presets in seconds */
 val DURATION_PRESETS_SECONDS = listOf(10, 15, 30, 60)
 
 /**
- * Interactive Geofence HUD for real-time vertex drawing and parameter configuration.
- * Supports polygon/circle geometry, selectable alert sound profiles, duration, trigger rules, and vibration.
+ * Prime Theme: Aerospace Tactical Minimalism & Micro-Glassmorphism Geofence Editor HUD.
+ * Features 42dp top status pill, frosted glass surfaces, hairline 0.85dp borders,
+ * monospace metrics, compact trigger rules, and tactile save controls.
  */
 @Composable
 fun GeofenceEditorHud(
@@ -118,7 +120,7 @@ fun GeofenceEditorHud(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // 1. Top HUD Action Bar
+        // 1. Top HUD Action Bar: 42dp Tactical Status Pill + 42dp Cancel Button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -126,32 +128,52 @@ fun GeofenceEditorHud(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Drawing Status Capsule with Undo/Reset actions
+            // Tactical Drawing Status Capsule (Height: 42dp, matching MapTopBar)
             Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                shadowElevation = 6.dp
+                shape = RoundedCornerShape(21.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                shadowElevation = 6.dp,
+                modifier = Modifier.height(42.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val isComplete = when (state.shapeType) {
+                        GeoFenceType.POLYGON -> state.vertices.size >= 3
+                        GeoFenceType.CIRCLE -> state.center != null
+                    }
+
+                    // Tactical Status Indicator Dot
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(if (isComplete) StatusLive else MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+
                     val statusText = when (state.shapeType) {
                         GeoFenceType.POLYGON -> when {
-                            state.vertices.isEmpty() -> "Tap map to add points"
-                            state.vertices.size < 3 -> "${state.vertices.size} points • Need at least 3"
-                            else -> "${state.vertices.size} vertices • Polygon closed"
+                            state.vertices.isEmpty() -> "POLYGON • TAP MAP TO ADD POINTS"
+                            state.vertices.size < 3 -> "${state.vertices.size} PTS • NEED 3 MIN"
+                            else -> "${state.vertices.size} VERTICES • CLOSED"
                         }
                         GeoFenceType.CIRCLE -> when {
-                            state.center == null -> "Tap map to place center"
-                            else -> "Center placed • Radius: ${state.radiusMeters.toInt()}m"
+                            state.center == null -> "CIRCLE • TAP MAP FOR CENTER"
+                            else -> "CENTER SET • R: ${state.radiusMeters.toInt()}m"
                         }
                     }
 
                     Text(
                         text = statusText,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.5.sp,
+                            letterSpacing = 0.4.sp
+                        ),
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
@@ -164,100 +186,122 @@ fun GeofenceEditorHud(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .width(1.dp)
+                                .width(0.85.dp)
                                 .height(16.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
 
                         if (state.shapeType == GeoFenceType.POLYGON) {
                             IconButton(
                                 onClick = onUndo,
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Undo last point",
+                                    contentDescription = "Undo last vertex",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         }
 
                         IconButton(
                             onClick = onClear,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
-                                contentDescription = if (state.shapeType == GeoFenceType.CIRCLE) "Clear center" else "Clear all points",
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(18.dp)
+                                contentDescription = if (state.shapeType == GeoFenceType.CIRCLE) "Reset center" else "Reset all points",
+                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                                modifier = Modifier.size(15.dp)
                             )
                         }
                     }
                 }
             }
 
-            // Cancel / Exit Button
+            // Tactical Cancel / Exit Circle (Height: 42dp)
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                shadowElevation = 6.dp
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                shadowElevation = 6.dp,
+                modifier = Modifier.size(42.dp)
             ) {
                 IconButton(
                     onClick = onCancel,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Cancel geofence editor",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
         }
 
-        // 2. Bottom Configuration Card
+        // 2. Bottom Configuration Card: Frosted Micro-Glass, Hairline Borders
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
             ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
             elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(16.dp)
-                    .heightIn(max = 420.dp)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                    .heightIn(max = 430.dp)
                     .verticalScroll(rememberScrollState())
             ) {
+                // Validation Error Banner
                 if (state.validationError != null) {
-                    Text(
-                        text = state.validationError,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                        border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = state.validationError,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                        }
+                    }
                 }
 
-                // Shape Type Segmented Control (Polygon vs Circle)
+                // Shape Type Tactical Segment Switcher
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(4.dp),
+                            .padding(3.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         val isPolygon = state.shapeType == GeoFenceType.POLYGON
@@ -265,46 +309,54 @@ fun GeofenceEditorHud(
                         val isExistingFence = state.id != null
 
                         Surface(
-                            shape = RoundedCornerShape(9.dp),
+                            shape = RoundedCornerShape(8.dp),
                             color = if (isPolygon) MaterialTheme.colorScheme.primary else Color.Transparent,
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(9.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable(enabled = !isExistingFence) {
                                     if (!isPolygon) onShapeChange(GeoFenceType.POLYGON)
                                 }
                         ) {
                             Row(
-                                modifier = Modifier.padding(vertical = 8.dp),
+                                modifier = Modifier.padding(vertical = 7.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "Polygon ⬡",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.4.sp,
+                                        fontSize = 11.sp
+                                    ),
                                     color = if (isPolygon) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(9.dp),
+                            shape = RoundedCornerShape(8.dp),
                             color = if (isCircle) MaterialTheme.colorScheme.primary else Color.Transparent,
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(9.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable(enabled = !isExistingFence) {
                                     if (!isCircle) onShapeChange(GeoFenceType.CIRCLE)
                                 }
                         ) {
                             Row(
-                                modifier = Modifier.padding(vertical = 8.dp),
+                                modifier = Modifier.padding(vertical = 7.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "Circle ◯",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.4.sp,
+                                        fontSize = 11.sp
+                                    ),
                                     color = if (isCircle) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -314,18 +366,28 @@ fun GeofenceEditorHud(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Name Input Field
+                // Zone Name OutlinedTextField
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = onNameChange,
-                    label = { Text("Zone Name") },
-                    placeholder = { Text("e.g. Warehouse, HQ, Restricted Perimeter") },
+                    label = {
+                        Text(
+                            text = "Zone Name",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    },
+                    placeholder = {
+                        Text(
+                            text = "e.g. Warehouse, HQ, Restricted Perimeter",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
+                        )
+                    },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(11.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -344,26 +406,41 @@ fun GeofenceEditorHud(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Perimeter Radius",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = "PERIMETER RADIUS",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    fontSize = 10.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                             )
                             val radiusDisplay = if (state.radiusMeters >= 1000.0) {
                                 String.format("%.2f km", state.radiusMeters / 1000.0)
                             } else {
-                                "${state.radiusMeters.toInt()} meters"
+                                "${state.radiusMeters.toInt()} m"
                             }
-                            Text(
-                                text = radiusDisplay,
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(5.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                            ) {
+                                Text(
+                                    text = radiusDisplay,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
 
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             items(RADIUS_PRESETS_METERS) { preset ->
@@ -374,9 +451,14 @@ fun GeofenceEditorHud(
                                     label = {
                                         Text(
                                             text = if (preset >= 1000.0) "${(preset / 1000).toInt()}km" else "${preset.toInt()}m",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 10.sp
+                                            )
                                         )
                                     },
+                                    shape = RoundedCornerShape(7.dp),
+                                    border = BorderStroke(0.85.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -391,12 +473,13 @@ fun GeofenceEditorHud(
                         ) {
                             IconButton(
                                 onClick = { onRadiusChange((state.radiusMeters - 25.0).coerceAtLeast(10.0)) },
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Remove,
                                     contentDescription = "Decrease radius",
-                                    modifier = Modifier.size(18.dp)
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
 
@@ -415,25 +498,30 @@ fun GeofenceEditorHud(
 
                             IconButton(
                                 onClick = { onRadiusChange((state.radiusMeters + 25.0).coerceAtMost(50000.0)) },
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Increase radius",
-                                    modifier = Modifier.size(18.dp)
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // --- 3. TRIGGER RULES ---
                 Text(
-                    text = "Alarm Trigger Condition",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = "TRIGGER CONDITION",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                        fontSize = 10.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -453,7 +541,7 @@ fun GeofenceEditorHud(
                             leadingIcon = {
                                 Box(
                                     modifier = Modifier
-                                        .size(8.dp)
+                                        .size(6.dp)
                                         .clip(CircleShape)
                                         .background(dotColor)
                                 )
@@ -461,9 +549,14 @@ fun GeofenceEditorHud(
                             label = {
                                 Text(
                                     text = label,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 10.5.sp
+                                    )
                                 )
                             },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(0.85.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -473,7 +566,7 @@ fun GeofenceEditorHud(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // --- 4. SIREN SOUND PROFILE & TEST PREVIEW ---
                 Row(
@@ -482,37 +575,52 @@ fun GeofenceEditorHud(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Alarm Siren Sound",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            if (isTestingSound) onStopSound() else onTestSound(state.soundProfile)
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = if (isTestingSound) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        text = "ALARM SIREN SOUND",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
+                            fontSize = 10.sp
                         ),
-                        modifier = Modifier.height(38.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(7.dp),
+                        color = if (isTestingSound) MaterialTheme.colorScheme.error.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        border = BorderStroke(0.85.dp, if (isTestingSound) MaterialTheme.colorScheme.error.copy(alpha = 0.45f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                        modifier = Modifier.clip(RoundedCornerShape(7.dp))
                     ) {
-                        Icon(
-                            imageVector = if (isTestingSound) Icons.Default.Stop else Icons.Default.PlayArrow,
-                            contentDescription = if (isTestingSound) "Stop preview" else "Test sound",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isTestingSound) "Stop" else "Test",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .clickable {
+                                    if (isTestingSound) onStopSound() else onTestSound(state.soundProfile)
+                                }
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isTestingSound) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                contentDescription = if (isTestingSound) "Stop preview" else "Test sound",
+                                tint = if (isTestingSound) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (isTestingSound) "STOP" else "TEST",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.4.sp,
+                                    fontSize = 10.sp
+                                ),
+                                color = if (isTestingSound) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(AlertSoundProfile.entries) { profile ->
@@ -523,9 +631,14 @@ fun GeofenceEditorHud(
                             label = {
                                 Text(
                                     text = profile.displayName,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 10.sp
+                                    )
                                 )
                             },
+                            shape = RoundedCornerShape(7.dp),
+                            border = BorderStroke(0.85.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -534,7 +647,7 @@ fun GeofenceEditorHud(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // --- 5. ALARM DURATION & VIBRATION ---
                 Row(
@@ -544,12 +657,16 @@ fun GeofenceEditorHud(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Playback Duration",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "DURATION & HAPTICS",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                fontSize = 10.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             DURATION_PRESETS_SECONDS.forEach { sec ->
                                 val isSelected = state.durationSeconds == sec
                                 FilterChip(
@@ -558,9 +675,14 @@ fun GeofenceEditorHud(
                                     label = {
                                         Text(
                                             text = "${sec}s",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 10.sp
+                                            )
                                         )
                                     },
+                                    shape = RoundedCornerShape(7.dp),
+                                    border = BorderStroke(0.85.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -577,14 +699,17 @@ fun GeofenceEditorHud(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Vibration,
-                                contentDescription = "Vibration toggle",
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(15.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "Vibrate",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 10.5.sp
+                                )
                             )
                         }
                         Switch(
@@ -592,13 +717,16 @@ fun GeofenceEditorHud(
                             onCheckedChange = onVibrationChange,
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                            )
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            modifier = Modifier.scale(0.8f)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Curated Color Palette Row
                 Row(
@@ -607,9 +735,13 @@ fun GeofenceEditorHud(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Accent Color",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "ACCENT COLOR",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp,
+                            fontSize = 10.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -617,14 +749,14 @@ fun GeofenceEditorHud(
                             val isSelected = state.colorArgb == colorInt
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(36.dp)
                                     .clip(CircleShape)
                                     .clickable { onColorChange(colorInt) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .size(24.dp)
                                         .clip(CircleShape)
                                         .background(Color(colorInt)),
                                     contentAlignment = Alignment.Center
@@ -634,7 +766,7 @@ fun GeofenceEditorHud(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected color",
                                             tint = Color.White,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(14.dp)
                                         )
                                     }
                                 }
@@ -643,21 +775,26 @@ fun GeofenceEditorHud(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Save Geofence Action
+                // Save Geofence Action: Tactical Full-Width Button
                 Button(
                     onClick = onSave,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(11.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(44.dp)
                 ) {
                     Text(
-                        text = if (state.id != null) "Update Perimeter" else "Save Perimeter",
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        text = if (state.id != null) "UPDATE PERIMETER" else "SAVE PERIMETER",
+                        style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            letterSpacing = 0.6.sp,
+                            fontSize = 12.sp
                         )
                     )
                 }

@@ -182,14 +182,7 @@ fun TraceAppDrawer(
     val scrollState = rememberScrollState()
 
     ModalDrawerSheet(
-        modifier = modifier
-            .width(300.dp)
-            .graphicsLayer {
-                // Promotes entire drawer sheet to an isolated GPU hardware layer.
-                // When dragging/translating, the GPU renders the cached texture without child repainting.
-                shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
-                clip = true
-            },
+        modifier = modifier.width(300.dp),
         drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
         drawerContainerColor = MaterialTheme.colorScheme.surface,
         drawerTonalElevation = 0.dp,
@@ -565,7 +558,7 @@ private fun SoftLivePulseDot(
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
+    val pulseAlpha = infiniteTransition.animateFloat(
         initialValue = 0.35f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
@@ -578,7 +571,7 @@ private fun SoftLivePulseDot(
     Box(
         modifier = modifier
             .size(6.dp)
-            .graphicsLayer { alpha = pulseAlpha }
+            .graphicsLayer { alpha = pulseAlpha.value }
             .clip(CircleShape)
             .background(StatusLive)
     )
@@ -595,45 +588,14 @@ private fun MinimalDrawerItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val animatedBgColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        } else {
-            Color.Transparent
-        },
-        animationSpec = tween(180),
-        label = "itemBgColor"
-    )
-
-    val animatedIconTint by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
-        },
-        animationSpec = tween(180),
-        label = "itemIconTint"
-    )
-
-    val animatedTextColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.onSurface
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
-        },
-        animationSpec = tween(180),
-        label = "itemTextColor"
-    )
-
-    val borderStroke = if (isSelected) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
-    } else {
-        null
-    }
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent
+    val animatedIconTint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+    val animatedTextColor = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+    val borderStroke = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)) else null
 
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = animatedBgColor,
+        color = bgColor,
         border = borderStroke,
         modifier = modifier
             .fillMaxWidth()
@@ -705,35 +667,13 @@ private fun SecondaryToolItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val animatedBgColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
-        } else {
-            Color.Transparent
-        },
-        animationSpec = tween(180),
-        label = "secToolBgColor"
-    )
-
-    val animatedContentColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-        },
-        animationSpec = tween(180),
-        label = "secToolContentColor"
-    )
-
-    val borderStroke = if (isSelected) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f))
-    } else {
-        null
-    }
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else Color.Transparent
+    val animatedContentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+    val borderStroke = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)) else null
 
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = animatedBgColor,
+        color = bgColor,
         border = borderStroke,
         modifier = modifier
             .fillMaxWidth()

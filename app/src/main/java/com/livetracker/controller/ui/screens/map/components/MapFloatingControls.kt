@@ -67,11 +67,11 @@ import com.livetracker.controller.ui.screens.map.config.MapStyle
 
 /**
  * Ultra-Compact, Minimalist Tactical Map Action Dock.
- * Designed for one-handed operational ergonomics:
- * - 40dp capsule geometry elevated smoothly above map clutter.
- * - Hairline border with frosted glass surface.
+ * Redesigned with UI/UX Pro Max Minimalism guidelines:
+ * - 38dp slim capsule geometry floating cleanly at center-right.
+ * - Frosted micro-glass (alpha 0.88) with hairline 0.85dp border.
  * - Tactile spring-physics press feedback.
- * - 4 core operational actions: Layer Switcher, Recenter on Target, Zoom In, Zoom Out.
+ * - 4 core actions: Map Layers, Recenter on Target, Zoom In (+), Zoom Out (-).
  */
 @Composable
 fun MapFloatingControls(
@@ -81,20 +81,19 @@ fun MapFloatingControls(
     onOpenLayerPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val glassSurface = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
-    val glassBorder = MaterialTheme.colorScheme.outline.copy(alpha = 0.32f)
+    val glassSurface = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+    val glassBorder = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(19.dp),
         color = glassSurface,
-        border = BorderStroke(1.dp, glassBorder),
-        shadowElevation = 6.dp,
-        tonalElevation = 2.dp
+        border = BorderStroke(0.85.dp, glassBorder),
+        shadowElevation = 6.dp
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 2.dp, vertical = 3.dp)
+            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
         ) {
             // 1. Layer Quick Switcher
             FloatingControlButton(
@@ -105,9 +104,9 @@ fun MapFloatingControls(
 
             HorizontalDivider(
                 modifier = Modifier
-                    .width(22.dp)
-                    .padding(vertical = 2.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    .width(20.dp)
+                    .padding(vertical = 1.5.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
                 thickness = 0.5.dp
             )
 
@@ -121,9 +120,9 @@ fun MapFloatingControls(
 
             HorizontalDivider(
                 modifier = Modifier
-                    .width(22.dp)
-                    .padding(vertical = 2.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    .width(20.dp)
+                    .padding(vertical = 1.5.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
                 thickness = 0.5.dp
             )
 
@@ -136,9 +135,9 @@ fun MapFloatingControls(
 
             HorizontalDivider(
                 modifier = Modifier
-                    .width(22.dp)
-                    .padding(vertical = 2.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    .width(20.dp)
+                    .padding(vertical = 1.5.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
                 thickness = 0.5.dp
             )
 
@@ -171,9 +170,9 @@ private fun FloatingControlButton(
 
     Box(
         modifier = modifier
-            .size(38.dp)
+            .size(36.dp)
             .scale(scale)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(11.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -186,7 +185,7 @@ private fun FloatingControlButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(17.dp)
         )
     }
 }
@@ -206,31 +205,31 @@ fun MapLayersSheet(
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn(tween(160)) + slideInVertically(
-            initialOffsetY = { it / 3 },
+            initialOffsetY = { it / 4 },
             animationSpec = spring(dampingRatio = 0.82f, stiffness = 400f)
-        ) + scaleIn(initialScale = 0.94f),
+        ) + scaleIn(initialScale = 0.95f),
         exit = fadeOut(tween(140)) + slideOutVertically(
-            targetOffsetY = { it / 3 },
+            targetOffsetY = { it / 4 },
             animationSpec = tween(160)
-        ) + scaleOut(targetScale = 0.94f),
+        ) + scaleOut(targetScale = 0.95f),
         modifier = modifier
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .widthIn(max = 380.dp)
+                .widthIn(max = 360.dp)
                 .padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(22.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
             ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.40f)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 14.dp)
+            border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
                 // Header
                 Row(
@@ -243,41 +242,41 @@ fun MapLayersSheet(
                             text = "Map Basemap",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.5.sp,
+                                fontSize = 15.sp,
                                 letterSpacing = 0.2.sp
                             ),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "4 operational appearance presets",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                         )
                     }
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(26.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(17.dp)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f),
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
                     thickness = 0.5.dp
                 )
 
                 // 2x2 Tactical Grid
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     LayerTile(
                         title = "Streets",
@@ -304,11 +303,11 @@ fun MapLayersSheet(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     LayerTile(
                         title = "Tactical Night",
@@ -324,7 +323,7 @@ fun MapLayersSheet(
 
                     LayerTile(
                         title = "Topographic",
-                        subtitle = "Elevation Relief",
+                        subtitle = "Relief & Contours",
                         icon = Icons.Default.Terrain,
                         isSelected = currentConfiguration.provider == MapProvider.OPEN_STREET_MAP &&
                                 currentConfiguration.style == MapStyle.TERRAIN,
@@ -348,90 +347,101 @@ private fun LayerTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 420f),
+        label = "tileScale"
+    )
+
+    val surfaceColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
     }
 
     val borderColor = if (isSelected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.60f)
     } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.20f)
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f)
     }
 
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        color = bgColor,
-        border = BorderStroke(1.dp, borderColor)
+            .scale(scale)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = surfaceColor,
+        border = BorderStroke(if (isSelected) 1.2.dp else 0.75.dp, borderColor)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 9.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.70f),
-                modifier = Modifier.size(30.dp)
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(15.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.width(9.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            fontSize = 12.sp
-                        ),
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Active",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(9.dp)
-                            )
-                        }
-                    }
-                }
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = title,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                        fontSize = 12.sp
+                    ),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (isSelected) {
+                Spacer(modifier = Modifier.width(4.dp))
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(9.dp)
+                    )
+                }
             }
         }
     }

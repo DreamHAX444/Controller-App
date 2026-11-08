@@ -18,6 +18,8 @@ object CameraTestTags {
     const val CHIP_PROFILE_LOW = "camera_chip_profile_LOW"
     const val CHIP_PROFILE_MEDIUM = "camera_chip_profile_MEDIUM"
     const val CHIP_PROFILE_HIGH = "camera_chip_profile_HIGH"
+    const val CHIP_PROFILE_FPS_60 = "camera_chip_profile_FPS_60"
+    const val CHIP_PROFILE_UHD_4K = "camera_chip_profile_UHD_4K"
     const val CHIP_PROFILE_AUTO = "camera_chip_profile_AUTO"
     const val BTN_FULLSCREEN = "camera_btn_fullscreen"
     const val BTN_RELOAD_CAMERAS = "camera_btn_reload_cameras"

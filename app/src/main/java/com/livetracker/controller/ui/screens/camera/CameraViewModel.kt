@@ -107,6 +107,7 @@ class CameraViewModel(
     private val _isOperating = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
     private val _sessionState = MutableStateFlow<Session?>(null)
+    private val _liveBitrateKbps = MutableStateFlow<Int?>(null)
 
     init {
         viewModelScope.launch {
@@ -225,8 +226,9 @@ class CameraViewModel(
         rawDevicesFlow,
         _selectedTrackerId,
         rawCameraStreamFlow,
-        controlsFlow
-    ) { devices, selectedId, cameraState, controls ->
+        controlsFlow,
+        _liveBitrateKbps
+    ) { devices, selectedId, cameraState, controls, liveBitrate ->
         // Effective device if none selected and devices are available
         val effectiveTrackerId = selectedId ?: devices.firstOrNull()?.deviceId
         val selectedDevice = devices.find { it.deviceId == effectiveTrackerId }
@@ -302,6 +304,7 @@ class CameraViewModel(
             isFullScreen = controls.isFullScreen,
             requestedConfig = requestedConfig,
             actualConfig = actualConfig,
+            liveBitrateKbps = liveBitrate,
             errorMessage = controls.errorMessage
         )
     }.stateIn(
@@ -315,6 +318,7 @@ class CameraViewModel(
     )
 
     private var videoTrackObserveJob: Job? = null
+    private var bitrateSamplerJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -324,11 +328,34 @@ class CameraViewModel(
                     if (videoTrackObserveJob?.isActive != true) {
                         observeVideoTrack(trackerId)
                     }
+                    if (state.lifecycleState == StreamLifecycleState.STREAMING) {
+                        if (bitrateSamplerJob?.isActive != true) {
+                            observeBitrateStats(trackerId)
+                        }
+                    } else {
+                        bitrateSamplerJob?.cancel()
+                        bitrateSamplerJob = null
+                        _liveBitrateKbps.value = null
+                    }
                 } else {
                     videoTrackObserveJob?.cancel()
                     videoTrackObserveJob = null
                     _videoTrack.value = null
+                    bitrateSamplerJob?.cancel()
+                    bitrateSamplerJob = null
+                    _liveBitrateKbps.value = null
                 }
+            }
+        }
+    }
+
+    private fun observeBitrateStats(trackerId: TrackerId) {
+        val manager = webRtcSessionManager ?: return
+        bitrateSamplerJob?.cancel()
+        bitrateSamplerJob = viewModelScope.launch {
+            val session = manager.getSession(trackerId) as? com.livetracker.controller.webrtc.AndroidWebRtcSession
+            session?.liveBitrateKbps?.collect { kbps ->
+                _liveBitrateKbps.value = kbps
             }
         }
     }
@@ -580,6 +607,9 @@ class CameraViewModel(
      * Selects a specific discovered hardware camera sensor (e.g. Back Primary, Ultra-Wide, Telephoto, Front).
      */
     fun selectCamera(camera: DiscoveredCameraInfo) {
+        if (_selectedCameraId.value == camera.cameraId && _selectedFacing.value == camera.facing) {
+            return // Already active; ignore redundant selection
+        }
         _selectedCameraId.value = camera.cameraId
         _selectedFacing.value = camera.facing
         savedStateHandle?.set(KEY_SELECTED_FACING, camera.facing.name)
@@ -667,6 +697,9 @@ class CameraViewModel(
     }
 
     public override fun onCleared() {
+        bitrateSamplerJob?.cancel()
+        bitrateSamplerJob = null
+        _liveBitrateKbps.value = null
         cleanupActiveStream()
         super.onCleared()
     }

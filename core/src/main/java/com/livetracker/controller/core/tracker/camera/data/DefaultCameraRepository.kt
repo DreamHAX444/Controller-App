@@ -44,6 +44,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import java.util.UUID
 
@@ -122,10 +123,22 @@ class DefaultCameraRepository(
     private fun parseDiscoveredCameras(payload: String): List<DiscoveredCameraInfo> {
         return try {
             val json = Json { ignoreUnknownKeys = true }
-            val element = json.parseToJsonElement(payload)
-            val camerasArray = if (element is JsonObject) {
-                element["cameras"]?.jsonArray
-            } else null
+            var element = json.parseToJsonElement(payload)
+            if (element is JsonObject && element.containsKey("params")) {
+                val paramsStr = element["params"]?.jsonPrimitive?.contentOrNull
+                if (!paramsStr.isNullOrBlank()) {
+                    runCatching { element = json.parseToJsonElement(paramsStr) }
+                }
+            }
+
+            val camerasArray = when (element) {
+                is JsonObject -> {
+                    element["cameras"]?.jsonArray
+                        ?: (element["data"] as? JsonObject)?.get("cameras")?.jsonArray
+                }
+                is kotlinx.serialization.json.JsonArray -> element
+                else -> null
+            }
 
             camerasArray?.mapNotNull { item ->
                 if (item is JsonObject) {
@@ -135,6 +148,8 @@ class DefaultCameraRepository(
                     val facing = runCatching { CameraFacing.valueOf(facingStr) }.getOrDefault(CameraFacing.BACK)
                     val lensType = item["lensType"]?.jsonPrimitive?.content ?: "PRIMARY"
                     val isLogical = item["isLogicalMultiCamera"]?.jsonPrimitive?.booleanOrNull ?: false
+
+                    val physIds = item["physicalCameraIds"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
 
                     val configs = item["configurations"]?.jsonArray
                     val resolutions = configs?.mapNotNull { cfg ->
@@ -151,6 +166,7 @@ class DefaultCameraRepository(
                         facing = facing,
                         lensType = lensType,
                         isLogicalMultiCamera = isLogical,
+                        physicalCameraIds = physIds,
                         supportedResolutions = resolutions
                     )
                 } else null

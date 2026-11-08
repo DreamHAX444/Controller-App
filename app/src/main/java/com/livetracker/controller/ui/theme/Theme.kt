@@ -12,6 +12,8 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
@@ -19,6 +21,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+
+val LocalDarkTheme = compositionLocalOf { false }
 
 enum class ThemeMode(val label: String) {
     SYSTEM("System"),
@@ -85,7 +89,7 @@ enum class ThemeAccentPreset(
 }
 
 data class ThemeConfiguration(
-    val themeMode: ThemeMode = ThemeMode.DARK,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accentPreset: ThemeAccentPreset = ThemeAccentPreset.SAPPHIRE,
     val customHueDegrees: Int = 215,
     val useDynamicSystemColor: Boolean = false
@@ -221,8 +225,10 @@ fun TraceTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
-    )
+    CompositionLocalProvider(LocalDarkTheme provides effectiveDark) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            content = content
+        )
+    }
 }

@@ -2,6 +2,7 @@ package com.livetracker.controller.ui.screens.map.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -10,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -47,8 +50,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,12 +72,15 @@ import kotlinx.coroutines.delay
 import java.util.Locale
 
 /**
- * Minimalist, Sophisticated, and Premium Live Telemetry Card.
- * Designed strictly around UI/UX Pro Max and Ponytail guidelines:
- * - Pure telemetry intelligence: battery, velocity, precision, link, and coordinates.
- * - Zero empty/dead action states; RBAC-agnostic and clean.
- * - 1-tap copy coordinates to clipboard with feedback badge.
- * - Tactile spring drag-to-dismiss and double-tap zoom gestures.
+ * Ultra-Sleek Aerospace Live Telemetry HUD.
+ * Redesigned with UI/UX Pro Max Minimalism guidelines:
+ * - Slim ~118dp height profile giving >90% unobstructed screen canvas to the map.
+ * - Translucent frosted micro-glass (alpha 0.88) with 0.85dp hairline border.
+ * - Live status beacon with high-contrast state badge (LIVE / IDLE / OFFLINE).
+ * - Fast tactical actions: Previous, Next, Recenter on Target, Dismiss.
+ * - Single-row 4-pill Bento Telemetry Strip (Battery, Velocity, Precision, Link).
+ * - 1-Tap Monospace Coordinates copy with animated checkmark feedback.
+ * - Vertical drag-down to dismiss + double-tap deep zoom gestures.
  */
 @Composable
 fun DeviceTelemetryCard(
@@ -100,7 +109,7 @@ fun DeviceTelemetryCard(
     var copiedCoords by remember { mutableStateOf(false) }
     LaunchedEffect(copiedCoords) {
         if (copiedCoords) {
-            delay(2200L)
+            delay(2000L)
             copiedCoords = false
         }
     }
@@ -150,12 +159,12 @@ fun DeviceTelemetryCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 14.dp)
             .pointerInput(marker.deviceId) {
                 detectVerticalDragGestures(
                     onDragStart = { verticalDragDelta = 0f },
                     onDragEnd = {
-                        if (verticalDragDelta > 64f) {
+                        if (verticalDragDelta > 50f) {
                             onDismiss()
                         }
                         verticalDragDelta = 0f
@@ -174,37 +183,37 @@ fun DeviceTelemetryCard(
                     }
                 )
             },
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+        border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 11.dp)
+                .padding(horizontal = 14.dp, vertical = 9.dp)
         ) {
-            // Top Grab Handle / Pager Dots
+            // Micro Grab Handle / Multi-device indicator
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 6.dp),
+                    .padding(bottom = 5.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (totalDeviceCount > 1) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         for (i in 0 until totalDeviceCount) {
                             val isCurrent = i == deviceIndex
                             Box(
                                 modifier = Modifier
-                                    .height(4.dp)
-                                    .width(if (isCurrent) 16.dp else 5.dp)
+                                    .height(3.dp)
+                                    .width(if (isCurrent) 14.dp else 4.dp)
                                     .clip(CircleShape)
                                     .background(
                                         if (isCurrent) MaterialTheme.colorScheme.primary
@@ -216,15 +225,15 @@ fun DeviceTelemetryCard(
                 } else {
                     Box(
                         modifier = Modifier
-                            .width(32.dp)
-                            .height(4.dp)
+                            .width(28.dp)
+                            .height(3.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f))
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f))
                     )
                 }
             }
 
-            // Header Row: Status Beacon + Friendly Name + Status Pill + Recenter & Dismiss
+            // Header Row: Beacon + Friendly Name + Status Pill + Relative Time + Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -236,22 +245,22 @@ fun DeviceTelemetryCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(9.dp)
+                            .size(8.dp)
                             .clip(CircleShape)
                             .background(statusColor)
                     )
-                    Spacer(modifier = Modifier.width(9.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
                                 text = friendlyName,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.5.sp,
-                                    letterSpacing = 0.2.sp
+                                    fontSize = 14.5.sp,
+                                    letterSpacing = 0.15.sp
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
@@ -259,105 +268,78 @@ fun DeviceTelemetryCard(
                                 modifier = Modifier.weight(1f, fill = false)
                             )
                             Surface(
-                                shape = RoundedCornerShape(6.dp),
+                                shape = RoundedCornerShape(5.dp),
                                 color = statusColor.copy(alpha = 0.14f),
-                                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.40f))
+                                border = BorderStroke(0.75.dp, statusColor.copy(alpha = 0.35f))
                             ) {
                                 Text(
                                     text = statusLabel,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 9.5.sp
+                                        fontSize = 9.sp
                                     ),
                                     color = statusColor,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
+                                    modifier = Modifier.padding(horizontal = 4.5.dp, vertical = 1.dp)
                                 )
                             }
                         }
                         Text(
                             text = "Updated $relativeTimeText",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
+                // Quick Action Controls (Previous, Next, Recenter, Dismiss)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     if (totalDeviceCount > 1) {
-                        IconButton(
-                            onClick = { onPreviousDevice?.invoke() },
+                        MicroIconButton(
+                            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Previous Tracker",
                             enabled = onPreviousDevice != null,
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                contentDescription = "Previous Tracker",
-                                tint = if (onPreviousDevice != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = { onNextDevice?.invoke() },
+                            onClick = { onPreviousDevice?.invoke() }
+                        )
+                        MicroIconButton(
+                            icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Next Tracker",
                             enabled = onNextDevice != null,
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = "Next Tracker",
-                                tint = if (onNextDevice != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                    }
-
-                    // Center Camera Button
-                    Surface(
-                        modifier = Modifier.size(34.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .clickable { onCenterOnDevice() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = "Center on Map",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                    }
-
-                    // Dismiss Card Button
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close Telemetry Card",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(17.dp)
+                            onClick = { onNextDevice?.invoke() }
                         )
                     }
+
+                    // Recenter on Target Button
+                    MicroIconButton(
+                        icon = Icons.Default.MyLocation,
+                        contentDescription = "Center on Map",
+                        tint = MaterialTheme.colorScheme.primary,
+                        surfaceColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
+                        onClick = onCenterOnDevice
+                    )
+
+                    // Dismiss Card Button
+                    MicroIconButton(
+                        icon = Icons.Default.Close,
+                        contentDescription = "Close Telemetry Card",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        onClick = onDismiss
+                    )
                 }
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+                modifier = Modifier.padding(vertical = 6.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
+                thickness = 0.6.dp
             )
 
-            // Telemetry Bento Metrics Row (Battery, Velocity, Precision, Link)
+            // Telemetry 1-Row Bento Strip (Battery, Velocity, Precision, Link)
             val batteryVal = marker.batteryLevel
             val batteryText = if (batteryVal != null && batteryVal in 0..100) "$batteryVal%" else "Standby"
             val batteryColor = when {
@@ -388,27 +370,27 @@ fun DeviceTelemetryCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                TelemetryMetricPill(
+                MicroTelemetryPill(
                     label = "BATTERY",
                     value = batteryText,
                     valueColor = batteryColor,
                     modifier = Modifier.weight(1f)
                 )
-                TelemetryMetricPill(
+                MicroTelemetryPill(
                     label = "VELOCITY",
                     value = speedText,
                     valueColor = if (speedKmh >= 0.5f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
-                TelemetryMetricPill(
+                MicroTelemetryPill(
                     label = "PRECISION",
                     value = accuracyText,
                     valueColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
-                TelemetryMetricPill(
+                MicroTelemetryPill(
                     label = "LINK",
                     value = networkText,
                     valueColor = MaterialTheme.colorScheme.primary,
@@ -416,9 +398,9 @@ fun DeviceTelemetryCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(7.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
-            // Footer: Monospace Coordinates (1-Tap Copy) + Gesture Hint
+            // Footer: Monospace Coordinates (1-Tap Copy) + Gestures Hint
             val formattedCoords = String.format(Locale.US, "%.5f, %.5f", marker.latitude, marker.longitude)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -426,10 +408,10 @@ fun DeviceTelemetryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(5.dp),
                     color = if (copiedCoords) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(5.dp))
                         .clickable {
                             val clip = android.content.ClipData.newPlainText("Coordinates", formattedCoords)
                             clipboardManager?.setPrimaryClip(clip)
@@ -438,35 +420,35 @@ fun DeviceTelemetryCard(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.5.dp)
                     ) {
                         Text(
                             text = formattedCoords,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.3.sp
+                                fontSize = 10.sp,
+                                letterSpacing = 0.25.sp
                             ),
                             color = if (copiedCoords) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         AnimatedVisibility(
                             visible = copiedCoords,
-                            enter = fadeIn(tween(150)),
-                            exit = fadeOut(tween(150))
+                            enter = fadeIn(tween(120)),
+                            exit = fadeOut(tween(120))
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = "Copied",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(11.dp)
+                                    modifier = Modifier.size(10.dp)
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
                                 Text(
                                     text = "Copied",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 9.sp,
+                                        fontSize = 8.5.sp,
                                         fontWeight = FontWeight.Bold
                                     ),
                                     color = MaterialTheme.colorScheme.primary
@@ -478,12 +460,12 @@ fun DeviceTelemetryCard(
 
                 Text(
                     text = if (totalDeviceCount > 1) {
-                        "${deviceIndex + 1}/$totalDeviceCount • Swipe ⇄ or ↓ close"
+                        "${deviceIndex + 1}/$totalDeviceCount • Swipe ⇄"
                     } else {
-                        "Double-tap zoom • Swipe ↓ close"
+                        "Double-tap zoom • ↓ close"
                     },
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -493,7 +475,7 @@ fun DeviceTelemetryCard(
 }
 
 @Composable
-private fun TelemetryMetricPill(
+private fun MicroTelemetryPill(
     label: String,
     value: String,
     valueColor: Color,
@@ -501,34 +483,83 @@ private fun TelemetryMetricPill(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(11.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+        shape = RoundedCornerShape(9.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(0.65.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 9.sp,
+                    fontSize = 8.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.4.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 maxLines = 1
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 11.5.sp
+                    fontSize = 11.sp
                 ),
                 color = valueColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun MicroIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
+    surfaceColor: Color = Color.Transparent,
+    borderColor: Color = Color.Transparent
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isPressed && enabled) 0.88f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 420f),
+        label = "microBtnScale"
+    )
+
+    Surface(
+        modifier = modifier
+            .size(28.dp)
+            .scale(scale),
+        shape = RoundedCornerShape(8.dp),
+        color = surfaceColor,
+        border = if (borderColor != Color.Transparent) BorderStroke(0.75.dp, borderColor) else null
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = onClick
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (enabled) tint else tint.copy(alpha = 0.3f),
+                modifier = Modifier.size(16.dp)
             )
         }
     }

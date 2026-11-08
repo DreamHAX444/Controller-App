@@ -8,6 +8,10 @@ import com.livetracker.controller.core.tracker.webrtc.WebRtcConfiguration
 import com.livetracker.controller.core.tracker.webrtc.WebRtcSession
 import com.livetracker.controller.core.tracker.webrtc.WebRtcState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +55,13 @@ class AndroidWebRtcSession(
     
     private val _remoteVideoTrack = MutableStateFlow<VideoTrack?>(null)
     val remoteVideoTrack: StateFlow<VideoTrack?> = _remoteVideoTrack.asStateFlow()
+
+    private val _liveBitrateKbps = MutableStateFlow<Int?>(null)
+    val liveBitrateKbps: StateFlow<Int?> = _liveBitrateKbps.asStateFlow()
+
+    private var statsJob: Job? = null
+    private var lastBytesReceived: Long = 0L
+    private var lastTimestampMs: Long = 0L
     
     private val activeDataChannels = mutableListOf<AndroidTrackerDataChannel>()
     private val pendingRemoteCandidates = mutableListOf<IceCandidate>()
@@ -64,10 +75,22 @@ class AndroidWebRtcSession(
 
         override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
             when (state) {
-                PeerConnection.IceConnectionState.CONNECTED -> _state.value = WebRtcState.CONNECTED
-                PeerConnection.IceConnectionState.DISCONNECTED -> _state.value = WebRtcState.DISCONNECTED
-                PeerConnection.IceConnectionState.FAILED -> _state.value = WebRtcState.FAILED
-                PeerConnection.IceConnectionState.CLOSED -> _state.value = WebRtcState.CLOSED
+                PeerConnection.IceConnectionState.CONNECTED -> {
+                    _state.value = WebRtcState.CONNECTED
+                    startStatsPolling()
+                }
+                PeerConnection.IceConnectionState.DISCONNECTED -> {
+                    _state.value = WebRtcState.DISCONNECTED
+                    stopStatsPolling()
+                }
+                PeerConnection.IceConnectionState.FAILED -> {
+                    _state.value = WebRtcState.FAILED
+                    stopStatsPolling()
+                }
+                PeerConnection.IceConnectionState.CLOSED -> {
+                    _state.value = WebRtcState.CLOSED
+                    stopStatsPolling()
+                }
                 else -> {}
             }
         }
@@ -202,6 +225,7 @@ class AndroidWebRtcSession(
     }
 
     override suspend fun stop() = sessionMutex.withLock {
+        stopStatsPolling()
         peerConnection?.close()
         peerConnection = null
         pendingRemoteCandidates.clear()
@@ -211,6 +235,53 @@ class AndroidWebRtcSession(
         }
         activeDataChannels.clear()
         _state.value = WebRtcState.CLOSED
+    }
+
+    private fun startStatsPolling() {
+        statsJob?.cancel()
+        statsJob = scope.launch {
+            while (isActive) {
+                delay(1000)
+                val pc = peerConnection ?: break
+                if (_state.value != WebRtcState.CONNECTED) continue
+                try {
+                    pc.getStats { report ->
+                        for (stat in report.statsMap.values) {
+                            if (stat.type == "inbound-rtp") {
+                                val kind = stat.members["kind"] as? String
+                                if (kind == "video" || kind == null) {
+                                    val bytes = (stat.members["bytesReceived"] as? Number)?.toLong() ?: 0L
+                                    val now = System.currentTimeMillis()
+                                    if (lastBytesReceived > 0L && now > lastTimestampMs && bytes >= lastBytesReceived) {
+                                        val deltaBytes = bytes - lastBytesReceived
+                                        val deltaTimeMs = now - lastTimestampMs
+                                        if (deltaTimeMs > 0) {
+                                            val kbps = ((deltaBytes * 8L * 1000L) / (deltaTimeMs * 1000L)).toInt()
+                                            if (kbps > 0) {
+                                                _liveBitrateKbps.value = kbps
+                                            }
+                                        }
+                                    }
+                                    lastBytesReceived = bytes
+                                    lastTimestampMs = now
+                                    break
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore transient stats delivery failures
+                }
+            }
+        }
+    }
+
+    private fun stopStatsPolling() {
+        statsJob?.cancel()
+        statsJob = null
+        _liveBitrateKbps.value = null
+        lastBytesReceived = 0L
+        lastTimestampMs = 0L
     }
     
     override fun createDataChannel(label: String): TrackerDataChannel? {

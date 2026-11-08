@@ -64,6 +64,7 @@ data class CameraUiState(
     val isFullScreen: Boolean = false,
     val requestedConfig: CameraCaptureConfig? = null,
     val actualConfig: ActualCaptureConfig? = null,
+    val liveBitrateKbps: Int? = null,
 
     // Feedback
     val errorMessage: String? = null

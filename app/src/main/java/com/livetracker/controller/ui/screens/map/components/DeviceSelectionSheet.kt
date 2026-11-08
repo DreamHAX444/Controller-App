@@ -65,13 +65,15 @@ import com.livetracker.controller.core.tracker.domain.TrackerId
 import com.livetracker.controller.ui.theme.StatusConnecting
 import com.livetracker.controller.ui.theme.StatusLive
 import com.livetracker.controller.ui.theme.StatusOffline
+import com.livetracker.controller.ui.util.DeviceNameFormatter
 
 /**
- * Ultra-minimalist, sleek tracker device selector modal adhering to UI/UX Pro Max intelligence:
- * - Highly compact footprint (max 315dp width, max 380dp height) for minimal map intrusion.
- * - Single-line "All Trackers" capsule without redundant descriptive text.
+ * Ultra-Minimalist Tracker Device Selector Dropdown Modal.
+ * Redesigned with UI/UX Pro Max Minimalism guidelines:
+ * - Frosted micro-glass (alpha 0.92) with hairline 0.85dp border.
+ * - Single-tap "All Trackers" option tile.
  * - Micro-segmented Single vs Multi mode capsule.
- * - Clean, unified typography and high-contrast status dot telemetry.
+ * - Compact footprint (max 315dp width, max 370dp height) for minimal map intrusion.
  */
 @Composable
 fun DeviceSelectionSheet(
@@ -93,24 +95,24 @@ fun DeviceSelectionSheet(
         enter = slideInVertically(
             initialOffsetY = { -it / 2 },
             animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioLowBouncy)
-        ) + fadeIn(tween(200)),
+        ) + fadeIn(tween(180)),
         exit = slideOutVertically(
             targetOffsetY = { -it / 2 },
-            animationSpec = tween(160)
-        ) + fadeOut(tween(140)),
+            animationSpec = tween(150)
+        ) + fadeOut(tween(130)),
         modifier = modifier
     ) {
         Card(
             modifier = Modifier
                 .widthIn(min = 280.dp, max = 315.dp)
-                .heightIn(max = 380.dp)
+                .heightIn(max = 370.dp)
                 .animateContentSize(animationSpec = spring(dampingRatio = 0.85f, stiffness = 450f)),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
             ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
         ) {
             Column(
                 modifier = Modifier.padding(12.dp)
@@ -129,37 +131,38 @@ fun DeviceSelectionSheet(
                             text = "Trackers",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
+                                fontSize = 14.5.sp,
+                                letterSpacing = 0.2.sp
                             ),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                         ) {
                             Text(
                                 text = "${deviceSummaries.size}",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
+                                    fontSize = 9.5.sp
                                 ),
                                 color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
                             )
                         }
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         // Micro Segmented Mode Switch Capsule
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                            shape = RoundedCornerShape(7.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
                         ) {
-                            Row(modifier = Modifier.padding(2.dp)) {
+                            Row(modifier = Modifier.padding(1.5.dp)) {
                                 ModePill(
                                     label = "Single",
                                     isSelected = !isMultiSelectMode,
@@ -176,27 +179,27 @@ fun DeviceSelectionSheet(
                         // Close Button
                         IconButton(
                             onClick = onDismiss,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(26.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close tracker selector",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                modifier = Modifier.size(15.dp)
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // "All Trackers" Single-Line Compact Option Tile
+                // "All Trackers" Option Tile
                 val isAllSelected = deviceSelection == DeviceSelection.All
                 val allTileBg by animateColorAsState(
                     targetValue = if (isAllSelected && !isMultiSelectMode) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
                     },
                     label = "AllTileBg"
                 )
@@ -205,11 +208,11 @@ fun DeviceSelectionSheet(
                     shape = RoundedCornerShape(10.dp),
                     color = allTileBg,
                     border = BorderStroke(
-                        1.dp,
+                        0.75.dp,
                         if (isAllSelected && !isMultiSelectMode) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
                         } else {
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f)
                         }
                     ),
                     modifier = Modifier
@@ -221,7 +224,7 @@ fun DeviceSelectionSheet(
                         }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isMultiSelectMode) {
@@ -229,15 +232,15 @@ fun DeviceSelectionSheet(
                                 checked = isAllSelected,
                                 onCheckedChange = { onSelectAll() },
                                 colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(7.dp))
                         } else {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = if (isAllSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.size(22.dp)
+                                color = if (isAllSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f),
+                                modifier = Modifier.size(20.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -245,18 +248,18 @@ fun DeviceSelectionSheet(
                                         contentDescription = null,
                                         tint = if (isAllSelected) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(13.dp)
+                                        modifier = Modifier.size(12.dp)
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(7.dp))
                         }
 
                         Text(
                             text = "All Trackers",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 12.5.sp
+                                fontSize = 12.sp
                             ),
                             color = if (isAllSelected && !isMultiSelectMode) {
                                 MaterialTheme.colorScheme.primary
@@ -274,14 +277,14 @@ fun DeviceSelectionSheet(
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selected",
                                         tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(12.dp)
+                                        modifier = Modifier.size(10.dp)
                                     )
                                 }
                             }
@@ -290,14 +293,15 @@ fun DeviceSelectionSheet(
                 }
 
                 HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f),
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.16f),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(vertical = 7.dp)
                 )
 
-                // List of Individual Devices (Compact, 5dp vertical rhythm)
+                // List of Individual Devices
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(deviceSummaries, key = { it.device.deviceId.value }) { summary ->
                         val isSelected = when (deviceSelection) {
@@ -324,26 +328,26 @@ fun DeviceSelectionSheet(
                             targetValue = if (isSelected && !isMultiSelectMode) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f)
                             },
                             label = "ItemBg"
                         )
 
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(9.dp),
                             color = itemBg,
                             border = BorderStroke(
-                                1.dp,
+                                0.75.dp,
                                 if (isSelected && !isMultiSelectMode) {
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.40f)
                                 } else {
-                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.14f)
                                 }
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .animateItem()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(9.dp))
                                 .clickable {
                                     if (isMultiSelectMode) {
                                         onToggleMultiple(summary.device.deviceId)
@@ -354,7 +358,7 @@ fun DeviceSelectionSheet(
                                 }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (isMultiSelectMode) {
@@ -362,26 +366,25 @@ fun DeviceSelectionSheet(
                                         checked = isSelected,
                                         onCheckedChange = { onToggleMultiple(summary.device.deviceId) },
                                         colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary),
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(17.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(7.dp))
                                 } else {
-                                    // Status Dot with subtle glow
                                     Box(
                                         modifier = Modifier
                                             .size(7.dp)
                                             .clip(CircleShape)
                                             .background(statusDotColor)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(7.dp))
                                 }
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = com.livetracker.controller.ui.util.DeviceNameFormatter.formatFriendlyName(summary.device.displayName, summary.device.deviceId.value),
+                                        text = DeviceNameFormatter.formatFriendlyName(summary.device.displayName, summary.device.deviceId.value),
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                            fontSize = 12.5.sp
+                                            fontSize = 12.sp
                                         ),
                                         color = if (isSelected && !isMultiSelectMode) {
                                             MaterialTheme.colorScheme.primary
@@ -392,10 +395,9 @@ fun DeviceSelectionSheet(
                                         overflow = TextOverflow.Ellipsis
                                     )
 
-                                    // Compact Micro Telemetry Row
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                                         modifier = Modifier.padding(top = 1.dp)
                                     ) {
                                         val statusText = when (summary.device.connectionState) {
@@ -416,7 +418,7 @@ fun DeviceSelectionSheet(
                                             text = statusText,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.SemiBold,
-                                                fontSize = 9.5.sp
+                                                fontSize = 9.sp
                                             ),
                                             color = statusDotColor
                                         )
@@ -425,9 +427,9 @@ fun DeviceSelectionSheet(
                                             Text(
                                                 text = "• ${summary.device.batteryLevel}%",
                                                 style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 9.5.sp
+                                                    fontSize = 9.sp
                                                 ),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
                                             )
                                         }
 
@@ -435,9 +437,9 @@ fun DeviceSelectionSheet(
                                             Text(
                                                 text = "• ${summary.device.networkState}",
                                                 style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 9.5.sp
+                                                    fontSize = 9.sp
                                                 ),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
                                             )
                                         }
                                     }
@@ -451,14 +453,14 @@ fun DeviceSelectionSheet(
                                     Surface(
                                         shape = CircleShape,
                                         color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(16.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = "Selected",
                                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(12.dp)
+                                                modifier = Modifier.size(10.dp)
                                             )
                                         }
                                     }
@@ -488,20 +490,20 @@ private fun ModePill(
     )
 
     Surface(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(5.dp),
         color = bgColor,
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(5.dp))
             .clickable(onClick = onClick)
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 10.sp
+                fontSize = 9.5.sp
             ),
             color = textColor,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
         )
     }
 }

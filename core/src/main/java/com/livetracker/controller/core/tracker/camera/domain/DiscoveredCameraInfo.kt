@@ -19,9 +19,21 @@ data class DiscoveredCameraInfo(
         val DEFAULT_CAMERAS = listOf(
             DiscoveredCameraInfo(
                 cameraId = "0",
-                displayName = "Back Primary (0)",
+                displayName = "Back Wide 1x (0)",
                 facing = CameraFacing.BACK,
                 lensType = "PRIMARY"
+            ),
+            DiscoveredCameraInfo(
+                cameraId = "2",
+                displayName = "Back Ultra-Wide 0.5x (2)",
+                facing = CameraFacing.BACK,
+                lensType = "ULTRA_WIDE"
+            ),
+            DiscoveredCameraInfo(
+                cameraId = "3",
+                displayName = "Back Telephoto 3x (3)",
+                facing = CameraFacing.BACK,
+                lensType = "TELEPHOTO"
             ),
             DiscoveredCameraInfo(
                 cameraId = "1",

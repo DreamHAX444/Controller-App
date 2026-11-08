@@ -119,8 +119,10 @@ class TraceApplication : Application() {
     lateinit var commandStateStore: com.livetracker.controller.core.tracker.command.persistence.CommandStateStore
         private set
 
-    // === Map (Category A/B) ===
+    // === Map & Alerts (Category A/B) ===
     lateinit var mapPreferencesRepository: MapPreferencesRepository
+        private set
+    lateinit var alertPreferencesRepository: com.livetracker.controller.ui.screens.alerts.AlertPreferencesRepository
         private set
     lateinit var offlineMapManager: com.livetracker.controller.ui.screens.map.offline.OfflineMapManager
         private set
@@ -191,6 +193,7 @@ class TraceApplication : Application() {
                 label = "Restoring preferences",
                 action = {
                     mapPreferencesRepository = MapPreferencesRepository(applicationContext)
+                    alertPreferencesRepository = com.livetracker.controller.ui.screens.alerts.AlertPreferencesRepository(applicationContext)
                 }
             ),
             StartupStep(

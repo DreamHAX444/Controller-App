@@ -71,12 +71,12 @@ class MapPreferencesRepository(private val sharedPrefs: SharedPreferences) {
     }
 
     private fun loadThemeConfiguration(): ThemeConfiguration {
-        val modeStr = sharedPrefs.getString(KEY_THEME_MODE, ThemeMode.DARK.name) ?: ThemeMode.DARK.name
+        val modeStr = sharedPrefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name
         val presetStr = sharedPrefs.getString(KEY_ACCENT_PRESET, ThemeAccentPreset.SAPPHIRE.name) ?: ThemeAccentPreset.SAPPHIRE.name
         val customHue = sharedPrefs.getInt(KEY_CUSTOM_HUE_DEGREES, 215).coerceIn(0, 360)
         val dynamicColor = sharedPrefs.getBoolean(KEY_USE_DYNAMIC_COLOR, false)
 
-        val mode = runCatching { ThemeMode.valueOf(modeStr) }.getOrDefault(ThemeMode.DARK)
+        val mode = runCatching { ThemeMode.valueOf(modeStr) }.getOrDefault(ThemeMode.SYSTEM)
         val preset = runCatching { ThemeAccentPreset.valueOf(presetStr) }.getOrDefault(ThemeAccentPreset.SAPPHIRE)
 
         return ThemeConfiguration(

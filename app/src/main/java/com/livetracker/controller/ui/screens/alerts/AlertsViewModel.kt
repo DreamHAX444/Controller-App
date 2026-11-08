@@ -13,12 +13,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.livetracker.controller.alert.ActiveAlarmState
+import com.livetracker.controller.alert.SirenAlertEngine
+import com.livetracker.controller.core.tracker.geofence.domain.AlertSoundProfile
 
 enum class SeverityFilter {
     ALL,
@@ -56,6 +60,8 @@ data class AlertsUiState(
 class AlertsViewModel(
     private val alertRepository: AlertRepository,
     private val trackerDeviceRepository: TrackerDeviceRepository? = null,
+    private val sirenAlertEngine: SirenAlertEngine? = null,
+    private val alertPreferencesRepository: AlertPreferencesRepository? = null,
     private val savedStateHandle: SavedStateHandle? = null
 ) : ViewModel() {
 
@@ -70,6 +76,17 @@ class AlertsViewModel(
 
     private val initialDeviceId: TrackerId? = savedStateHandle?.get<String>(KEY_DEVICE_FILTER)
         ?.let { TrackerId(it) }
+
+    private val _showConfigSheet = MutableStateFlow(false)
+    val showConfigSheet: StateFlow<Boolean> = _showConfigSheet.asStateFlow()
+
+    fun openConfigSheet() {
+        _showConfigSheet.value = true
+    }
+
+    fun closeConfigSheet() {
+        _showConfigSheet.value = false
+    }
 
     private val _selectedSeverity = MutableStateFlow(initialSeverity)
     private val _selectedDeviceId = MutableStateFlow<TrackerId?>(initialDeviceId)
@@ -192,6 +209,63 @@ class AlertsViewModel(
         viewModelScope.launch {
             alertRepository.acknowledgeAllAlerts()
         }
+    }
+
+    val activeAlarm: StateFlow<ActiveAlarmState?> =
+        sirenAlertEngine?.activeAlarm ?: MutableStateFlow(null)
+
+    val alertConfiguration: StateFlow<AlertConfiguration> =
+        alertPreferencesRepository?.alertConfiguration ?: MutableStateFlow(AlertConfiguration())
+
+    fun testSiren(profile: AlertSoundProfile) {
+        val duration = alertConfiguration.value.sirenDurationSeconds
+        sirenAlertEngine?.testSoundProfile(profile, durationSeconds = minOf(duration, 10))
+    }
+
+    fun stopSiren() {
+        sirenAlertEngine?.dismissAlarm()
+    }
+
+    fun isSirenActive(): Boolean = sirenAlertEngine?.isPlaying() == true
+
+    fun updateAlertConfiguration(config: AlertConfiguration) {
+        alertPreferencesRepository?.updateConfiguration(config)
+    }
+
+    fun setSirenEnabled(enabled: Boolean) {
+        alertPreferencesRepository?.setSirenEnabled(enabled)
+    }
+
+    fun setDefaultSoundProfile(profile: AlertSoundProfile) {
+        alertPreferencesRepository?.setDefaultSoundProfile(profile)
+    }
+
+    fun setSirenDurationSeconds(seconds: Int) {
+        alertPreferencesRepository?.setSirenDurationSeconds(seconds)
+    }
+
+    fun setVibrationEnabled(enabled: Boolean) {
+        alertPreferencesRepository?.setVibrationEnabled(enabled)
+    }
+
+    fun setGeofenceBreachAlarmEnabled(enabled: Boolean) {
+        alertPreferencesRepository?.setGeofenceBreachAlarmEnabled(enabled)
+    }
+
+    fun setLowBatteryAlertEnabled(enabled: Boolean) {
+        alertPreferencesRepository?.setLowBatteryAlertEnabled(enabled)
+    }
+
+    fun setLowBatteryThresholdPercent(percent: Int) {
+        alertPreferencesRepository?.setLowBatteryThresholdPercent(percent)
+    }
+
+    fun setDeviceOfflineAlertEnabled(enabled: Boolean) {
+        alertPreferencesRepository?.setDeviceOfflineAlertEnabled(enabled)
+    }
+
+    fun setFullscreenBreachModalEnabled(enabled: Boolean) {
+        alertPreferencesRepository?.setFullscreenBreachModalEnabled(enabled)
     }
 }
 

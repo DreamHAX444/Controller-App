@@ -59,7 +59,10 @@ class CameraModelTest {
         assertEquals(1920, CameraResolution.FULL_HD_1080P.width)
         assertEquals(1080, CameraResolution.FULL_HD_1080P.height)
 
-        assertEquals(4, CameraResolution.SUPPORTED_RESOLUTIONS.size)
+        assertEquals(3840, CameraResolution.ULTRA_HD_4K.width)
+        assertEquals(2160, CameraResolution.ULTRA_HD_4K.height)
+
+        assertEquals(5, CameraResolution.SUPPORTED_RESOLUTIONS.size)
     }
 
     @Test

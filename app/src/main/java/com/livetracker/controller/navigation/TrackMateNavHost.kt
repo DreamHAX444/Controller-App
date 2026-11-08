@@ -397,14 +397,23 @@ fun TrackMateNavHost(
                     modifier = Modifier.padding(contentPadding)
                 )
             } else {
-                val cameraViewModel: CameraViewModel = if (viewModelFactory != null) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val owner = context as? androidx.lifecycle.ViewModelStoreOwner
+                val cameraViewModel: CameraViewModel = if (owner != null) {
+                    if (viewModelFactory != null) {
+                        androidx.lifecycle.ViewModelProvider(owner, viewModelFactory)[CameraViewModel::class.java]
+                    } else {
+                        androidx.lifecycle.ViewModelProvider(owner)[CameraViewModel::class.java]
+                    }
+                } else if (viewModelFactory != null) {
                     viewModel(factory = viewModelFactory)
                 } else {
                     viewModel()
                 }
                 CameraScreen(
                     viewModel = cameraViewModel,
-                    modifier = Modifier.padding(contentPadding),
+                    modifier = Modifier.fillMaxSize(),
+                    onOpenDrawer = onOpenDrawer,
                     onBack = { navController.popBackStack() }
                 )
             }

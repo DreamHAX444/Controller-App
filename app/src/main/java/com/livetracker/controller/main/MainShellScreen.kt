@@ -9,13 +9,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -134,6 +142,16 @@ fun MainShellScreen(
         } else null
     }
 
+    val cameraViewModel: com.livetracker.controller.ui.screens.camera.CameraViewModel? = remember(owner, viewModelFactory) {
+        if (owner != null) {
+            if (viewModelFactory != null) {
+                ViewModelProvider(owner, viewModelFactory)[com.livetracker.controller.ui.screens.camera.CameraViewModel::class.java]
+            } else {
+                ViewModelProvider(owner)[com.livetracker.controller.ui.screens.camera.CameraViewModel::class.java]
+            }
+        } else null
+    }
+
     BackHandler(enabled = drawerState.isOpen) {
         scope.launch { drawerState.close() }
     }
@@ -202,7 +220,7 @@ fun MainShellScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 AnimatedVisibility(
-                    visible = !isMap,
+                    visible = !isMap && currentDestination?.route != Destination.Camera.route,
                     enter = slideInVertically(
                         animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                         initialOffsetY = { -it }
@@ -260,38 +278,323 @@ fun MainShellScreen(
                                             }
                                         }
                                     }
-                                } else if (isAlertsScreen) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Alerts",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 17.5.sp,
-                                                letterSpacing = 0.3.sp
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
+                                } else if (isAlertsScreen && alertsViewModel != null) {
+                                    val alertsUiState by alertsViewModel.uiState.collectAsStateWithLifecycle()
+                                    val activeAlarm by alertsViewModel.activeAlarm.collectAsStateWithLifecycle()
+                                    val unackCount = alertsUiState.totalUnacknowledgedCount
 
-                                        if (alertsCount > 0) {
+                                    Column {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Alert Center",
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 17.sp,
+                                                    letterSpacing = 0.3.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+
+                                            if (unackCount > 0) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = com.livetracker.controller.ui.theme.StatusError.copy(alpha = 0.14f),
+                                                    border = BorderStroke(0.85.dp, com.livetracker.controller.ui.theme.StatusError.copy(alpha = 0.35f))
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(6.dp)
+                                                                .clip(CircleShape)
+                                                                .background(com.livetracker.controller.ui.theme.StatusError)
+                                                        )
+                                                        Text(
+                                                            text = "$unackCount CRITICAL",
+                                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 9.sp,
+                                                                fontFamily = FontFamily.Monospace,
+                                                                letterSpacing = 0.5.sp
+                                                            ),
+                                                            color = com.livetracker.controller.ui.theme.StatusError
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = com.livetracker.controller.ui.theme.StatusLive.copy(alpha = 0.14f),
+                                                    border = BorderStroke(0.85.dp, com.livetracker.controller.ui.theme.StatusLive.copy(alpha = 0.35f))
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(6.dp)
+                                                                .clip(CircleShape)
+                                                                .background(com.livetracker.controller.ui.theme.StatusLive)
+                                                        )
+                                                        Text(
+                                                            text = "MONITORING ACTIVE",
+                                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 9.sp,
+                                                                fontFamily = FontFamily.Monospace,
+                                                                letterSpacing = 0.5.sp
+                                                            ),
+                                                            color = com.livetracker.controller.ui.theme.StatusLive
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Text(
+                                            text = if (activeAlarm != null) "SIREN ACTIVE • AUDIBLE ALARM" else if (unackCount > 0) "$unackCount UNRESOLVED INCIDENT${if (unackCount == 1) "" else "S"}" else "ALL INCIDENTS RESOLVED",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.5.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = if (activeAlarm != null) com.livetracker.controller.ui.theme.StatusError else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                                            )
+                                        )
+                                    }
+                                } else if (isDiagnosticsScreen && diagnosticsViewModel != null) {
+                                    val diagUiState by diagnosticsViewModel.uiState.collectAsStateWithLifecycle()
+                                    val overallStatusColor = when {
+                                        !diagUiState.isNetworkOnline -> com.livetracker.controller.ui.theme.StatusError
+                                        diagUiState.subsystems.any { it.isWarning } -> com.livetracker.controller.ui.theme.StatusWarning
+                                        diagUiState.subsystems.any { !it.isHealthy && !it.isWarning } -> com.livetracker.controller.ui.theme.StatusError
+                                        else -> com.livetracker.controller.ui.theme.StatusLive
+                                    }
+
+                                    Column {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Diagnostics",
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 17.sp,
+                                                    letterSpacing = 0.3.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
                                             Surface(
-                                                shape = RoundedCornerShape(10.dp),
-                                                color = com.livetracker.controller.ui.theme.StatusError.copy(alpha = 0.12f),
-                                                border = BorderStroke(1.dp, com.livetracker.controller.ui.theme.StatusError.copy(alpha = 0.35f))
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = overallStatusColor.copy(alpha = 0.14f),
+                                                border = BorderStroke(0.85.dp, overallStatusColor.copy(alpha = 0.35f))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(6.dp)
+                                                            .clip(CircleShape)
+                                                            .background(overallStatusColor)
+                                                    )
+                                                    Text(
+                                                        text = if (diagUiState.isNetworkOnline && diagUiState.subsystems.all { it.isHealthy }) "NOMINAL" else "ATTENTION",
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 9.sp,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            letterSpacing = 0.5.sp
+                                                        ),
+                                                        color = overallStatusColor
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = "PROBED ${diagUiState.lastCheckTime}",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.5.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                                            )
+                                        )
+                                    }
+                                } else if (isCameraScreen && cameraViewModel != null) {
+                                    val cameraUiState by cameraViewModel.uiState.collectAsStateWithLifecycle()
+                                    var deviceDropdownOpen by remember { mutableStateOf(false) }
+
+                                    Column {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Live Camera",
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 17.sp,
+                                                    letterSpacing = 0.3.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+
+                                            Box {
+                                                Surface(
+                                                    onClick = { deviceDropdownOpen = true },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f),
+                                                    border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(6.dp)
+                                                                .clip(CircleShape)
+                                                                .background(
+                                                                    if (cameraUiState.isDeviceOnline) com.livetracker.controller.ui.theme.StatusLive
+                                                                    else com.livetracker.controller.ui.theme.StatusOffline
+                                                                )
+                                                        )
+                                                        Text(
+                                                            text = cameraUiState.selectedTrackerDisplayName.ifBlank { "SELECT ASSET" }.uppercase(),
+                                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontFamily = FontFamily.Monospace,
+                                                                fontSize = 9.sp,
+                                                                letterSpacing = 0.4.sp
+                                                            ),
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        Icon(
+                                                            imageVector = Icons.Default.ArrowDropDown,
+                                                            contentDescription = "Select Tracker Device",
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.size(14.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                DropdownMenu(
+                                                    expanded = deviceDropdownOpen,
+                                                    onDismissRequest = { deviceDropdownOpen = false }
+                                                ) {
+                                                    if (cameraUiState.availableTrackers.isEmpty()) {
+                                                        DropdownMenuItem(
+                                                            text = { Text("No tracker devices available", fontSize = 12.sp) },
+                                                            onClick = { deviceDropdownOpen = false }
+                                                        )
+                                                    } else {
+                                                        cameraUiState.availableTrackers.forEach { tracker ->
+                                                            val isSelected = tracker.deviceId == cameraUiState.selectedTrackerId
+                                                            DropdownMenuItem(
+                                                                leadingIcon = {
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .size(8.dp)
+                                                                            .clip(CircleShape)
+                                                                            .background(if (tracker.isOnline) com.livetracker.controller.ui.theme.StatusLive else com.livetracker.controller.ui.theme.StatusOffline)
+                                                                    )
+                                                                },
+                                                                text = {
+                                                                    Column {
+                                                                        Text(
+                                                                            text = tracker.displayName,
+                                                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                                            ),
+                                                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                                                        )
+                                                                        Text(
+                                                                            text = "${if (tracker.isOnline) "ONLINE" else "OFFLINE"} • ${if (tracker.isCameraSupported) "CAMERA READY" else "NO CAMERA"}",
+                                                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                                                fontFamily = FontFamily.Monospace,
+                                                                                fontSize = 9.sp
+                                                                            ),
+                                                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                                                                        )
+                                                                    }
+                                                                },
+                                                                onClick = {
+                                                                    deviceDropdownOpen = false
+                                                                    cameraViewModel.selectTracker(tracker.deviceId)
+                                                                }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Text(
+                                            text = when {
+                                                cameraUiState.isStreaming -> "STREAMING • SENSOR ${cameraUiState.selectedCameraId ?: "0"} • ${cameraUiState.selectedProfile.name}"
+                                                cameraUiState.canStart -> "READY TO STREAM • ${cameraUiState.discoveredCameras.size} SENSORS"
+                                                else -> cameraUiState.gatingReason.name.replace("_", " ")
+                                            },
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.5.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = if (cameraUiState.isStreaming) com.livetracker.controller.ui.theme.StatusLive else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                                            )
+                                        )
+                                    }
+                                } else if (isSettingsScreen) {
+                                    Column {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "System Settings",
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 17.sp,
+                                                    letterSpacing = 0.3.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                                border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                                             ) {
                                                 Text(
-                                                    text = "$alertsCount",
+                                                    text = "PREFERENCES",
                                                     style = MaterialTheme.typography.labelSmall.copy(
                                                         fontWeight = FontWeight.Bold,
-                                                        fontSize = 11.sp
+                                                        fontSize = 9.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        letterSpacing = 0.5.sp
                                                     ),
-                                                    color = com.livetracker.controller.ui.theme.StatusError,
-                                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                 )
                                             }
                                         }
+                                        Text(
+                                            text = "CARTOGRAPHY & SYSTEM THEME",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.5.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f)
+                                            )
+                                        )
                                     }
                                 } else {
                                     Text(
@@ -317,9 +620,6 @@ fun MainShellScreen(
                                         onClick = {
                                             scope.launch {
                                                 drawerState.open()
-                                                try {
-                                                    (context.applicationContext as? com.livetracker.controller.TraceApplication)?.supabaseFleetManager?.reconcileEffectivePermissions()
-                                                } catch (_: Exception) {}
                                             }
                                         },
                                         modifier = Modifier.size(40.dp)
@@ -354,44 +654,188 @@ fun MainShellScreen(
                                             )
                                         }
                                     }
-                                } else if (isAlertsScreen && alertsViewModel != null && alertsCount > 0) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-                                        modifier = Modifier
-                                            .padding(end = 12.dp)
-                                            .size(40.dp)
+                                } else if (isAlertsScreen && alertsViewModel != null) {
+                                    val alertsUiState by alertsViewModel.uiState.collectAsStateWithLifecycle()
+                                    val unackCount = alertsUiState.totalUnacknowledgedCount
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.padding(end = 12.dp)
                                     ) {
-                                        IconButton(
-                                            onClick = { alertsViewModel.acknowledgeAll() },
-                                            modifier = Modifier.size(40.dp)
+                                        if (unackCount > 0) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                                                border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                                modifier = Modifier.size(38.dp)
+                                            ) {
+                                                IconButton(
+                                                    onClick = { alertsViewModel.acknowledgeAll() },
+                                                    modifier = Modifier.size(38.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.DoneAll,
+                                                        contentDescription = "Acknowledge All Alerts",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(19.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                                            border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                            modifier = Modifier.size(38.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.DoneAll,
-                                                contentDescription = "Acknowledge All Alerts",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(19.dp)
-                                            )
+                                            IconButton(
+                                                onClick = { alertsViewModel.openConfigSheet() },
+                                                modifier = Modifier.size(38.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Settings,
+                                                    contentDescription = "Alert & Siren Settings",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(19.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 } else if (isDiagnosticsScreen && diagnosticsViewModel != null) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
-                                        modifier = Modifier
-                                            .padding(end = 12.dp)
-                                            .size(40.dp)
+                                    val diagUiState by diagnosticsViewModel.uiState.collectAsStateWithLifecycle()
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.padding(end = 12.dp)
                                     ) {
-                                        IconButton(
-                                            onClick = { diagnosticsViewModel.runDiagnostics() },
-                                            modifier = Modifier.size(40.dp)
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (diagUiState.isAutoRefreshActive) {
+                                                com.livetracker.controller.ui.theme.StatusLive.copy(alpha = 0.12f)
+                                            } else {
+                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f)
+                                            },
+                                            border = BorderStroke(
+                                                0.85.dp,
+                                                if (diagUiState.isAutoRefreshActive) {
+                                                    com.livetracker.controller.ui.theme.StatusLive.copy(alpha = 0.35f)
+                                                } else {
+                                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                                                }
+                                            ),
+                                            modifier = Modifier.clickable { diagnosticsViewModel.toggleAutoRefresh() }
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Refresh,
-                                                contentDescription = "Run Diagnostics Probe",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(19.dp)
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(
+                                                            if (diagUiState.isAutoRefreshActive) com.livetracker.controller.ui.theme.StatusLive
+                                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                                        )
+                                                )
+                                                Text(
+                                                    text = if (diagUiState.isAutoRefreshActive) "LIVE (4s)" else "PAUSED",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 10.sp,
+                                                        letterSpacing = 0.4.sp,
+                                                        fontFamily = FontFamily.Monospace
+                                                    ),
+                                                    color = if (diagUiState.isAutoRefreshActive) com.livetracker.controller.ui.theme.StatusLive
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                                            modifier = Modifier.size(38.dp)
+                                        ) {
+                                            IconButton(
+                                                onClick = { diagnosticsViewModel.runDiagnostics() },
+                                                enabled = !diagUiState.isChecking,
+                                                modifier = Modifier.size(38.dp)
+                                            ) {
+                                                if (diagUiState.isChecking) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Refresh,
+                                                        contentDescription = "Run Diagnostics Probe",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(19.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (isCameraScreen && cameraViewModel != null) {
+                                    val cameraUiState by cameraViewModel.uiState.collectAsStateWithLifecycle()
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(end = 12.dp)
+                                    ) {
+                                        if (cameraUiState.isStreaming) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                                                border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                IconButton(
+                                                    onClick = { cameraViewModel.switchCamera() },
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.FlipCameraAndroid,
+                                                        contentDescription = "Switch Camera Lens",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+                                            border = BorderStroke(0.85.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            IconButton(
+                                                onClick = { cameraViewModel.reloadCameras() },
+                                                enabled = !cameraUiState.isReloadingCameras,
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                if (cameraUiState.isReloadingCameras) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Refresh,
+                                                        contentDescription = "Scan Camera Sensors",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 } else if (isUpdatesScreen && updatesViewModel != null) {
@@ -480,7 +924,7 @@ fun MainShellScreen(
                 }
             },
             bottomBar = {
-                if (!isMap && !isVisitor) {
+                if (!isMap && !isVisitor && currentDestination?.route != Destination.Camera.route) {
                     TraceBottomBar(
                         currentRoute = currentDestination?.route,
                         alertsCount = alertsCount,
@@ -510,9 +954,6 @@ fun MainShellScreen(
                     onOpenDrawer = {
                         scope.launch {
                             drawerState.open()
-                            try {
-                                (context.applicationContext as? com.livetracker.controller.TraceApplication)?.supabaseFleetManager?.reconcileEffectivePermissions()
-                            } catch (_: Exception) {}
                         }
                     }
                 )
