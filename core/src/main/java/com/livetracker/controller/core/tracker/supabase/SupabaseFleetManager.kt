@@ -1052,9 +1052,9 @@ open class SupabaseFleetManager(
                 limit(1000)
             }
             val all = result.decodeList<LocationData>()
+            // ⚡ Bolt: Replaced groupBy/map with distinctBy to reduce memory allocations and time complexity from O(N^2) to O(N)
             all.filter { it.isValidCoordinates() }
-                .groupBy { it.deviceId }
-                .map { (_, list) -> list.first() }
+                .distinctBy { it.deviceId }
         } catch (e: Exception) {
             Log.e(tag, "Failed to fetch initial locations: ${e.message}", e)
             emptyList()
