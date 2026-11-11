@@ -443,7 +443,7 @@ fun GeofenceEditorHud(
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(RADIUS_PRESETS_METERS) { preset ->
+                            items(RADIUS_PRESETS_METERS, key = { it }) { preset ->
                                 val isSelected = Math.abs(state.radiusMeters - preset) < 1.0
                                 FilterChip(
                                     selected = isSelected,
@@ -623,7 +623,7 @@ fun GeofenceEditorHud(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(AlertSoundProfile.entries) { profile ->
+                    items(AlertSoundProfile.entries, key = { it.name }) { profile ->
                         val isSelected = state.soundProfile == profile
                         FilterChip(
                             selected = isSelected,
